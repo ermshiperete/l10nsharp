@@ -18,6 +18,18 @@
 		<trans-unit id="TestItem.Bird.Eagle">
 			<source xml:lang="en">Fish-eating bird</source>
 		</trans-unit>
+		<trans-unit id="TestItem.SettingsProtection.CtrlShiftHint">
+			<source xml:lang="en">The button will show up when you hold down the Ctrl and Shift keys together.</source>
+		</trans-unit>
+		<trans-unit id="TestItem.SettingsProtection.LauncherButtonLabel">
+			<source xml:lang="en">Settings Protection...</source>
+		</trans-unit>
+		<trans-unit id="TestItem.SettingsProtection.NormallyHiddenCheckbox">
+			<source xml:lang="en">Hide the button that opens settings.</source>
+		</trans-unit>
+		<trans-unit id="TestItem.SettingsProtection.PasswordDialog.FactoryPassword">
+			<source xml:lang="en">Factory Password</source>
+		</trans-unit>
 	</body>
 </file>
 </xliff>

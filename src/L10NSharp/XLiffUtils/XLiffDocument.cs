@@ -142,6 +142,7 @@ namespace L10NSharp.XLiffUtils
 			var langId = xLiffDoc.File.TargetLang;
 			if (string.IsNullOrEmpty(langId))
 				langId = xLiffDoc.File.SourceLang;
+			var storingDefaultSource = (langId == xLiffDoc.File.SourceLang && langId == LocalizationManager.kDefaultLang);
 			foreach (var tu in xLiffDoc.File.Body.TransUnits)
 			{
 				if (xLiffDoc.File.Body.TranslationsById.ContainsKey(tu.Id))
@@ -149,14 +150,18 @@ namespace L10NSharp.XLiffUtils
 					Console.WriteLine("WARNING: string ID \"{0}\" already found in \"{1}\".",
 						tu.Id, xLiffFile);
 				}
-				else if ((langId == xLiffDoc.File.SourceLang &&
-						langId == LocalizationManager.kDefaultLang) ||
-						!LocalizationManager.ReturnOnlyApprovedStrings ||
-						(tu.TranslationStatus == TranslationStatus.Approved))
+				else
 				{
 					var target = tu.GetVariantForLang(langId);
-					if (target != null && !string.IsNullOrEmpty(target.Value))
+					if (target != null && !string.IsNullOrEmpty(target.Value) &&
+						(storingDefaultSource ||
+						 tu.TranslationStatus == TranslationStatus.Approved ||
+						 target.TargetState != XLiffTransUnitVariant.TranslationState.NeedsTranslation))
+					{
 						xLiffDoc.File.Body.TranslationsById.Add(tu.Id, target.Value);
+						xLiffDoc.File.Body.ApprovalsById.Add(tu.Id,
+							storingDefaultSource || (tu.TranslationStatus == TranslationStatus.Approved));
+					}
 				}
 			}
 

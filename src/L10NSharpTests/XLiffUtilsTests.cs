@@ -46,7 +46,7 @@ namespace L10NSharp.Tests
 			// These numbers may be counter-intuitive, but then the English isn't translated, is it?
 			// Code at the LocalizationManagerInternal level will make English look okay for display by
 			// faking the approved and translated counts.
-			Assert.AreEqual(4, endoc.StringCount);
+			Assert.AreEqual(8, endoc.StringCount);
 			Assert.AreEqual(0, endoc.NumberApproved);
 			Assert.AreEqual(0, endoc.NumberTranslated);
 
@@ -64,15 +64,16 @@ namespace L10NSharp.Tests
 		}
 
 		[Test]
-		public void TestReturningAllStrings()
+		public void TestLoadingAllStringsAndApprovals()
 		{
 			var enfile = Path.Combine(_testFolder, "Test.en.xlf");
 			var endoc = XLiffDocument.Read(enfile);
 			// These numbers may be counter-intuitive, but then the English isn't translated, is it?
 			// Code at the LocalizationManagerInternal level will make English look okay for display by
 			// faking the approved and translated counts.
-			Assert.AreEqual(4, endoc.StringCount);
+			Assert.AreEqual(8, endoc.StringCount);
 			string source;
+			bool approved;
 			Assert.IsTrue(endoc.File.Body.TranslationsById.TryGetValue("TestItem.Bird.Crow", out source));
 			Assert.AreEqual("It's a crow", source);
 			Assert.IsTrue(endoc.File.Body.TranslationsById.TryGetValue("TestItem.Bird.Raven", out source));
@@ -81,6 +82,30 @@ namespace L10NSharp.Tests
 			Assert.AreEqual("It's a chicken", source);
 			Assert.IsTrue(endoc.File.Body.TranslationsById.TryGetValue("TestItem.Bird.Eagle", out source));
 			Assert.AreEqual("Fish-eating bird", source);
+			Assert.IsTrue(endoc.File.Body.TranslationsById.TryGetValue("TestItem.SettingsProtection.CtrlShiftHint", out source));
+			Assert.AreEqual("The button will show up when you hold down the Ctrl and Shift keys together.", source);
+			Assert.IsTrue(endoc.File.Body.TranslationsById.TryGetValue("TestItem.SettingsProtection.LauncherButtonLabel", out source));
+			Assert.AreEqual("Settings Protection...", source);
+			Assert.IsTrue(endoc.File.Body.TranslationsById.TryGetValue("TestItem.SettingsProtection.NormallyHiddenCheckbox", out source));
+			Assert.AreEqual("Hide the button that opens settings.", source);
+			Assert.IsTrue(endoc.File.Body.TranslationsById.TryGetValue("TestItem.SettingsProtection.PasswordDialog.FactoryPassword", out source));
+			Assert.AreEqual("Factory Password", source);
+			Assert.IsTrue(endoc.File.Body.ApprovalsById.TryGetValue("TestItem.Bird.Crow", out approved));
+			Assert.IsTrue(approved);
+			Assert.IsTrue(endoc.File.Body.ApprovalsById.TryGetValue("TestItem.Bird.Raven", out approved));
+			Assert.IsTrue(approved);
+			Assert.IsTrue(endoc.File.Body.ApprovalsById.TryGetValue("TestItem.Chicken.Rooster", out approved));
+			Assert.IsTrue(approved);
+			Assert.IsTrue(endoc.File.Body.ApprovalsById.TryGetValue("TestItem.Bird.Eagle", out approved));
+			Assert.IsTrue(approved);
+			Assert.IsTrue(endoc.File.Body.ApprovalsById.TryGetValue("TestItem.SettingsProtection.CtrlShiftHint", out approved));
+			Assert.IsTrue(approved);
+			Assert.IsTrue(endoc.File.Body.ApprovalsById.TryGetValue("TestItem.SettingsProtection.LauncherButtonLabel", out approved));
+			Assert.IsTrue(approved);
+			Assert.IsTrue(endoc.File.Body.ApprovalsById.TryGetValue("TestItem.SettingsProtection.NormallyHiddenCheckbox", out approved));
+			Assert.IsTrue(approved);
+			Assert.IsTrue(endoc.File.Body.ApprovalsById.TryGetValue("TestItem.SettingsProtection.PasswordDialog.FactoryPassword", out approved));
+			Assert.IsTrue(approved);
 
 			var frfile = Path.Combine(_testFolder, "Test.fr.xlf");
 			var frdoc = XLiffDocument.Read(frfile);
@@ -93,18 +118,35 @@ namespace L10NSharp.Tests
 			Assert.AreEqual("C'est un poulet", source);
 			Assert.IsTrue(frdoc.File.Body.TranslationsById.TryGetValue("TestItem.Bird.Eagle", out source));
 			Assert.AreEqual("Un oiseau qui mange des poissons", source);
+			Assert.IsTrue(frdoc.File.Body.ApprovalsById.TryGetValue("TestItem.Bird.Crow", out approved));
+			Assert.IsFalse(approved);
+			Assert.IsTrue(frdoc.File.Body.ApprovalsById.TryGetValue("TestItem.Bird.Raven", out approved));
+			Assert.IsFalse(approved);
+			Assert.IsTrue(frdoc.File.Body.ApprovalsById.TryGetValue("TestItem.Chicken.Rooster", out approved));
+			Assert.IsFalse(approved);
+			Assert.IsTrue(frdoc.File.Body.ApprovalsById.TryGetValue("TestItem.Bird.Eagle", out approved));
+			Assert.IsFalse(approved);
 
 			var esfile = Path.Combine(_testFolder, "Test.es.xlf");
 			var esdoc = XLiffDocument.Read(esfile);
 			Assert.AreEqual(4, esdoc.StringCount);
-			Assert.IsTrue(esdoc.File.Body.TranslationsById.TryGetValue("SettingsProtection.CtrlShiftHint", out source));
+			Assert.IsTrue(esdoc.File.Body.TranslationsById.TryGetValue("TestItem.SettingsProtection.CtrlShiftHint", out source));
 			Assert.AreEqual("El botón se mostrará cuando se mantengan presionadas juntas las teclas Ctrl y Mayús.", source);
-			Assert.IsTrue(esdoc.File.Body.TranslationsById.TryGetValue("SettingsProtection.LauncherButtonLabel", out source));
+			Assert.IsTrue(esdoc.File.Body.TranslationsById.TryGetValue("TestItem.SettingsProtection.LauncherButtonLabel", out source));
 			Assert.AreEqual("Protección de configuraciones...", source);
-			Assert.IsTrue(esdoc.File.Body.TranslationsById.TryGetValue("SettingsProtection.NormallyHiddenCheckbox", out source));
+			Assert.IsTrue(esdoc.File.Body.TranslationsById.TryGetValue("TestItem.SettingsProtection.NormallyHiddenCheckbox", out source));
 			Assert.AreEqual("Ocultar el botón que abre la configuración.", source);
-			Assert.IsTrue(esdoc.File.Body.TranslationsById.TryGetValue("SettingsProtection.PasswordDialog.FactoryPassword", out source));
-			Assert.AreEqual("Factory Password", source);	// note it's stored and returned even though marked as needing translation
+			// note the next string is not stored and returned since it's marked as needing translation
+			Assert.IsFalse(esdoc.File.Body.TranslationsById.TryGetValue("TestItem.SettingsProtection.PasswordDialog.FactoryPassword", out source));
+
+			Assert.IsTrue(esdoc.File.Body.ApprovalsById.TryGetValue("TestItem.SettingsProtection.CtrlShiftHint", out approved));
+			Assert.IsTrue(approved);
+			Assert.IsTrue(esdoc.File.Body.ApprovalsById.TryGetValue("TestItem.SettingsProtection.LauncherButtonLabel", out approved));
+			Assert.IsFalse(approved);
+			Assert.IsTrue(esdoc.File.Body.ApprovalsById.TryGetValue("TestItem.SettingsProtection.NormallyHiddenCheckbox", out approved));
+			Assert.IsTrue(approved);
+			// note the next string is not stored and returned since it's marked as needing translation
+			Assert.IsFalse(esdoc.File.Body.ApprovalsById.TryGetValue("TestItem.SettingsProtection.PasswordDialog.FactoryPassword", out approved));
 		}
 
 		[Test]
@@ -112,38 +154,84 @@ namespace L10NSharp.Tests
 		{
 			try
 			{
+				LocalizationManager.UseLanguageCodeFolders = false;
 				LocalizationManager.ReturnOnlyApprovedStrings = true;
-				var enfile = Path.Combine(_testFolder, "Test.en.xlf");
-				var endoc = XLiffDocument.Read(enfile);
-				string source;
-				Assert.IsTrue(endoc.File.Body.TranslationsById.TryGetValue("TestItem.Bird.Crow", out source));
-				Assert.AreEqual("It's a crow", source);
-				Assert.IsTrue(endoc.File.Body.TranslationsById.TryGetValue("TestItem.Bird.Raven", out source));
-				Assert.AreEqual("It's not a crow", source);
-				Assert.IsTrue(endoc.File.Body.TranslationsById.TryGetValue("TestItem.Chicken.Rooster", out source));
-				Assert.AreEqual("It's a chicken", source);
-				Assert.IsTrue(endoc.File.Body.TranslationsById.TryGetValue("TestItem.Bird.Eagle", out source));
-				Assert.AreEqual("Fish-eating bird", source);
 
-				var frfile = Path.Combine(_testFolder, "Test.fr.xlf");
-				var frdoc = XLiffDocument.Read(frfile);
-				Assert.IsFalse(frdoc.File.Body.TranslationsById.TryGetValue("TestItem.Bird.Crow", out source));
-				Assert.IsFalse(frdoc.File.Body.TranslationsById.TryGetValue("TestItem.Bird.Raven", out source));
-				Assert.IsFalse(frdoc.File.Body.TranslationsById.TryGetValue("TestItem.Chicken.Rooster", out source));
-				Assert.IsFalse(frdoc.File.Body.TranslationsById.TryGetValue("TestItem.Bird.Eagle", out source));
+				var l10nMgr = LocalizationManager.Create(TranslationMemory.XLiff, "en", "Test", "Test", "1.0.0.0", _testFolder, null, null, "fake@wherever.org", "TestItem");
+				var tags = l10nMgr.GetAvailableUILanguageTags();
+				var list = new List<string>();
+				list.AddRange(tags);
+				Assert.AreEqual(3, list.Count);
+				Assert.IsTrue(list.Contains("en"));
+				Assert.IsTrue(list.Contains("fr"));
+				Assert.IsTrue(list.Contains("es-ES"));
 
-				var esfile = Path.Combine(_testFolder, "Test.es.xlf");
-				var esdoc = XLiffDocument.Read(esfile);
-				Assert.IsTrue(esdoc.File.Body.TranslationsById.TryGetValue("SettingsProtection.CtrlShiftHint", out source));
-				Assert.AreEqual("El botón se mostrará cuando se mantengan presionadas juntas las teclas Ctrl y Mayús.", source);
-				Assert.IsFalse(esdoc.File.Body.TranslationsById.TryGetValue("SettingsProtection.LauncherButtonLabel", out source));
-				Assert.IsTrue(esdoc.File.Body.TranslationsById.TryGetValue("SettingsProtection.NormallyHiddenCheckbox", out source));
-				Assert.AreEqual("Ocultar el botón que abre la configuración.", source);
-				Assert.IsFalse(esdoc.File.Body.TranslationsById.TryGetValue("SettingsProtection.PasswordDialog.FactoryPassword", out source));
+				LocalizationManager.SetUILanguage("en", true);
+				var text = l10nMgr.GetLocalizedString("TestItem.Bird.Crow", "It's a crow");
+				Assert.AreEqual("It's a crow", text);
+				text = l10nMgr.GetLocalizedString("TestItem.Bird.Raven", "It's a raven, not a crow");	// revised string
+				Assert.AreEqual("It's a raven, not a crow", text);
+				text = l10nMgr.GetLocalizedString("TestItem.Chicken.Rooster", "It's a chicken");
+				Assert.AreEqual("It's a chicken", text);
+				text = l10nMgr.GetLocalizedString("TestItem.Bird.Eagle", "Fish-eating bird");
+				Assert.AreEqual("Fish-eating bird", text);
+
+				LocalizationManager.SetUILanguage("fr", true);
+				text = l10nMgr.GetLocalizedString("TestItem.Bird.Crow", "not there");
+				Assert.AreEqual("not there", text);
+				text = l10nMgr.GetLocalizedString("TestItem.Bird.Raven", "not there");
+				Assert.AreEqual("not there", text);
+				text = l10nMgr.GetLocalizedString("TestItem.Chicken.Rooster", "not there");
+				Assert.AreEqual("not there", text);
+				text = l10nMgr.GetLocalizedString("TestItem.Bird.Eagle", "not there");
+				Assert.AreEqual("not there", text);
+
+				LocalizationManager.SetUILanguage("es-ES", true);
+				text = l10nMgr.GetLocalizedString("TestItem.SettingsProtection.CtrlShiftHint", "not there");
+				Assert.AreEqual("El botón se mostrará cuando se mantengan presionadas juntas las teclas Ctrl y Mayús.", text);
+				text = l10nMgr.GetLocalizedString("TestItem.SettingsProtection.LauncherButtonLabel", "not there");
+				Assert.AreEqual("not there", text);
+				text = l10nMgr.GetLocalizedString("TestItem.SettingsProtection.NormallyHiddenCheckbox", "not there");
+				Assert.AreEqual("Ocultar el botón que abre la configuración.", text);
+				text = l10nMgr.GetLocalizedString("TestItem.SettingsProtection.PasswordDialog.FactoryPassword", "not there");
+				Assert.AreEqual("not there", text);
+
+				LocalizationManager.ReturnOnlyApprovedStrings = false;	// SUT - dynamically changing this flag
+
+				LocalizationManager.SetUILanguage("en", true);
+				text = l10nMgr.GetLocalizedString("TestItem.Bird.Crow", "It's a crow");
+				Assert.AreEqual("It's a crow", text);
+				text = l10nMgr.GetLocalizedString("TestItem.Bird.Raven", "It's a raven, not a crow");   // revised string
+				Assert.AreEqual("It's a raven, not a crow", text);
+				text = l10nMgr.GetLocalizedString("TestItem.Chicken.Rooster", "It's a chicken");
+				Assert.AreEqual("It's a chicken", text);
+				text = l10nMgr.GetLocalizedString("TestItem.Bird.Eagle", "Fish-eating bird");
+				Assert.AreEqual("Fish-eating bird", text);
+
+				LocalizationManager.SetUILanguage("fr", true);
+				text = l10nMgr.GetLocalizedString("TestItem.Bird.Crow", "not there");
+				Assert.AreEqual("C'est un corbeau", text);
+				text = l10nMgr.GetLocalizedString("TestItem.Bird.Raven", "not there");
+				Assert.AreEqual("Ce n'est pas un corbeau", text);
+				text = l10nMgr.GetLocalizedString("TestItem.Chicken.Rooster", "not there");
+				Assert.AreEqual("C'est un poulet", text);
+				text = l10nMgr.GetLocalizedString("TestItem.Bird.Eagle", "not there");
+				Assert.AreEqual("Un oiseau qui mange des poissons", text);
+
+				LocalizationManager.SetUILanguage("es-ES", true);
+				text = l10nMgr.GetLocalizedString("TestItem.SettingsProtection.CtrlShiftHint", "not there");
+				Assert.AreEqual("El botón se mostrará cuando se mantengan presionadas juntas las teclas Ctrl y Mayús.", text);
+				text = l10nMgr.GetLocalizedString("TestItem.SettingsProtection.LauncherButtonLabel", "not there");
+				Assert.AreEqual("Protección de configuraciones...", text);
+				text = l10nMgr.GetLocalizedString("TestItem.SettingsProtection.NormallyHiddenCheckbox", "not there");
+				Assert.AreEqual("Ocultar el botón que abre la configuración.", text);
+				text = l10nMgr.GetLocalizedString("TestItem.SettingsProtection.PasswordDialog.FactoryPassword", "not there");
+				Assert.AreEqual("Factory Password", text);	// original (xliff) English is fallback for Spanish
 			}
 			finally
 			{
-				LocalizationManager.ReturnOnlyApprovedStrings = false;	// restore default for other tests
+				LocalizationManager.ReturnOnlyApprovedStrings = false;  // restore default for other tests
+				LocalizationManager.SetUILanguage(LocalizationManager.kDefaultLang, true);
 			}
 		}
 

@@ -67,6 +67,8 @@ namespace L10NSharp.XLiffUtils
 		/// ------------------------------------------------------------------------------------
 		[XmlIgnore]
 		public readonly Dictionary<string, string> TranslationsById = new Dictionary<string, string>();
+		[XmlIgnore]
+		public readonly Dictionary<string, bool> ApprovalsById = new Dictionary<string, bool>();
 		#endregion
 
 
@@ -123,6 +125,7 @@ namespace L10NSharp.XLiffUtils
 				TranslationsById[tu.Id] = tu.Target.Value;
 			else
 				TranslationsById[tu.Id] = tu.Source.Value;
+			ApprovalsById[tu.Id] = tu.TranslationStatus == TranslationStatus.Approved;
 			return true;
 		}
 
@@ -147,6 +150,7 @@ namespace L10NSharp.XLiffUtils
 			//surely take precedence, as the translation for that language.
 			existingTu.AddOrReplaceVariant(variantToAdd);
 			TranslationsById[tu.Id] = variantToAdd.Value;
+			ApprovalsById[tu.Id] = tu.TranslationStatus == TranslationStatus.Approved;
 		}
 
 		/// ------------------------------------------------------------------------------------
@@ -172,7 +176,10 @@ namespace L10NSharp.XLiffUtils
 				}
 			}
 			if (tu.Id != null)
+			{
 				TranslationsById.Remove(tu.Id);
+				ApprovalsById.Remove(tu.Id);
+			}
 		}
 
 		#endregion

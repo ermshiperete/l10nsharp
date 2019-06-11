@@ -141,6 +141,11 @@ namespace L10NSharp.XLiffUtils
 									// adjust the document's internal cache
 									xliffDoc.File.Body.TranslationsById[movedUnit.Id] = xliffDoc.File.Body.TranslationsById[tu.Id];
 									xliffDoc.File.Body.TranslationsById.Remove(tu.Id);
+									if (xliffDoc.File.Body.ApprovalsById.ContainsKey(tu.Id))
+									{
+										xliffDoc.File.Body.ApprovalsById[movedUnit.Id] = xliffDoc.File.Body.ApprovalsById[tu.Id];
+										xliffDoc.File.Body.ApprovalsById.Remove(tu.Id);
+									}
 								}
 								tu.Id = movedUnit.Id;
 								xliffDoc.IsDirty = true;
@@ -443,6 +448,8 @@ namespace L10NSharp.XLiffUtils
 			if (!xliff.File.Body.TranslationsById.TryGetValue(id, out var value))
 				return null;
 			if (string.IsNullOrEmpty(value))
+				return null;
+			if (LocalizationManager.ReturnOnlyApprovedStrings && (!xliff.File.Body.ApprovalsById.ContainsKey(id) || !xliff.File.Body.ApprovalsById[id]))
 				return null;
 
 			if (formatForDisplay && s_literalNewline != null)

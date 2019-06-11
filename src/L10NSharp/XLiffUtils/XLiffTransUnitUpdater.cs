@@ -204,6 +204,7 @@ namespace L10NSharp.XLiffUtils
 			if (string.IsNullOrEmpty(newValue))
 			{
 				xliffTarget.File.Body.TranslationsById.Remove(tuId);
+				xliffTarget.File.Body.ApprovalsById.Remove(tuId);
 				return tuTarget;
 			}
 
@@ -227,6 +228,7 @@ namespace L10NSharp.XLiffUtils
 
 			tuTarget.AddOrReplaceVariant(locInfo.LangId, newValue);
 			xliffTarget.File.Body.TranslationsById[tuId] = newValue;
+			xliffTarget.File.Body.ApprovalsById[tuId] = false;
 			_updated = true;
 			return tuTarget;
 		}
