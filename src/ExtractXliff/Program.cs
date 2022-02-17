@@ -123,7 +123,7 @@ namespace ExtractXliff
 				stringCache.UpdateLocalizedInfo(locInfo);
 
 			// Get the newly loaded static strings (in newDoc) and the baseline XLIFF (in baseDoc).
-			var newDoc = stringCache.XliffDocuments[kDefaultLangId];
+			var newDoc = stringCache.GetDocument(kDefaultLangId);
 			var baseDoc = LoadBaselineAndCompare(newDoc);
 
 			// Save the results to the output file, merging in data from the baseline XLIFF if one was specified.
