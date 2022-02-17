@@ -12,22 +12,28 @@ using L10NSharp.UI;
 namespace L10NSharp.XLiffUtils
 {
 	/// ----------------------------------------------------------------------------------------
-	internal class XLiffLocalizedStringCache: LocalizedStringCache, ILocalizedStringCache<XLiffDocument>
+	internal class XLiffLocalizedStringCache : LocalizedStringCache, ILocalizedStringCache<XLiffDocument>
 	{
 		private readonly XLiffTransUnitUpdater _tuUpdater;
 
 		public List<LocTreeNode<XLiffDocument>> LeafNodeList { get; private set; }
 		internal XLiffLocalizationManager OwningManager { get; private set; }
-		private XLiffDocument DefaultXliffDocument { get; set; }	// matches LanguageManager.kDefaultLanguage
+		private XLiffDocument DefaultXliffDocument { get; set; } // matches LanguageManager.kDefaultLanguage
 
 		/// <summary>
-		/// Record the xliff document loaded for each language.
+		/// Record the xliff document loaded for each language. Use this with care...XLiff documents are only
+		/// loaded as needed, so unless _unloadedXliffDocuments is empty, XliffDocuments won't necessarily
+		/// contain the one you want or have a complete list of keys. This class has its own GetDocument,
+		/// TryGetDocument, and AvailableLangKeys which should usually be used instead. To help enforce this,
+		/// XliffDocuments should be kept private, and any access to it should go through methods that
+		/// take lazy loading of Xliff documents into account.
 		/// </summary>
-		internal readonly Dictionary<string, XLiffDocument> XliffDocuments = new Dictionary<string, XLiffDocument>();
+		private readonly Dictionary<string, XLiffDocument> XliffDocuments = new Dictionary<string, XLiffDocument>();
 
-		public Dictionary<string, XLiffDocument> Documents => XliffDocuments;
+		private readonly Dictionary<string, string> _unloadedXliffDocuments = new Dictionary<string, string>();
 
 		#region Loading methods
+
 		/// ------------------------------------------------------------------------------------
 		/// <summary>
 		/// Loads the string cache from all the specified Xliff files
@@ -69,10 +75,44 @@ namespace L10NSharp.XLiffUtils
 			IsDirty = false;
 		}
 
+		internal XLiffDocument GetDocument(string langId)
+		{
+			TryGetDocument(langId, out XLiffDocument doc);
+			return doc;
+		}
+
+		public bool TryGetDocument(string langId, out XLiffDocument doc)
+		{
+			if (XliffDocuments.TryGetValue(langId, out doc))
+				return true;
+			doc = LoadXliff(langId);
+			return doc != null;
+		}
+
+		public IEnumerable<string> AvailableLangKeys
+		{
+			get
+			{
+				// We need the real target-language values out of the files, so we may
+				// as well go ahead and load them properly.
+				foreach (var langId in _unloadedXliffDocuments.Keys.ToList())
+				{
+					LoadXliff(langId);
+				}
+
+				return XliffDocuments.Keys;
+			}
+		}
+
+		internal void AddDocument(string langId, XLiffDocument doc)
+		{
+			XliffDocuments.Add(langId, doc);
+		}
+
 		/// ------------------------------------------------------------------------------------
 		private void MergeXliffFilesIntoCache(IEnumerable<string> xliffFiles)
 		{
-			DefaultXliffDocument = XLiffDocument.Read(OwningManager.DefaultStringFilePath);	// read the generated file
+			DefaultXliffDocument = XLiffDocument.Read(OwningManager.DefaultStringFilePath); // read the generated file
 			// It's possible (I think when there is no customizable Xliff, as on first install, but the version in the installed Xliff
 			// is out of date with the app) that we don't have all the info from the installed Xliff in the customizable one.
 			// We want to make sure that (a) any new dynamic strings in the installed one are considered valid by default
@@ -83,89 +123,137 @@ namespace L10NSharp.XLiffUtils
 				{
 					var defaultInstalledXliffDoc = XLiffDocument.Read(OwningManager.DefaultInstalledStringFilePath);
 					foreach (var tu in defaultInstalledXliffDoc.File.Body.TransUnits)
-						DefaultXliffDocument.File.Body.AddTransUnitOrVariantFromExisting(tu, LocalizationManager.kDefaultLang);
+						DefaultXliffDocument.File.Body.AddTransUnitOrVariantFromExisting(tu,
+							LocalizationManager.kDefaultLang);
 				}
 			}
+
 			XliffDocuments.Add(LocalizationManager.kDefaultLang, DefaultXliffDocument);
 			// Map the default language onto itself.
-			LocalizationManagerInternal<XLiffDocument>.MapToExistingLanguage[LocalizationManager.kDefaultLang] = LocalizationManager.kDefaultLang;
+			LocalizationManagerInternal<XLiffDocument>.MapToExistingLanguage[LocalizationManager.kDefaultLang] =
+				LocalizationManager.kDefaultLang;
 
 			Exception error = null;
 
 			foreach (var file in xliffFiles)
 			{
-				try
+				var langId = XLiffLocalizationManager.GetLangIdFromXliffFileName(file);
+				Debug.Assert(!string.IsNullOrEmpty(langId));
+				Debug.Assert(langId != LocalizationManager.kDefaultLang);
+				// Provide a mapping from a specific variant of a language to the base language.
+				// For example, "es-ES" can provide translations for "es" if we don't have "es" specifically.
+				var pieces = langId.Split('-');
+				if (pieces.Length > 1)
 				{
-					var xliffDoc = XLiffDocument.Read(file);
-					var langId = xliffDoc.File.TargetLang;
-					Debug.Assert(!string.IsNullOrEmpty(langId));
-					Debug.Assert(langId != LocalizationManager.kDefaultLang);
-					// Provide a mapping from a specific variant of a language to the base language.
-					// For example, "es-ES" can provide translations for "es" if we don't have "es" specifically.
-					var pieces = langId.Split('-');
-					if (pieces.Length > 1)
-					{
-						if (!LocalizationManagerInternal<XLiffDocument>.MapToExistingLanguage.ContainsKey(pieces[0]))
-							LocalizationManagerInternal<XLiffDocument>.MapToExistingLanguage.Add(pieces[0], langId);
-					}
-					// Identity mapping always wins.  Storing it simplifies code elsewhere.
-					LocalizationManagerInternal<XLiffDocument>.MapToExistingLanguage[langId] = langId;
-					XliffDocuments.Add(langId, xliffDoc);
-					var defunctUnits = new List<XLiffTransUnit>();
-					foreach (var tu in xliffDoc.File.Body.TransUnits)
-					{
-						// This block attempts to find 'orphans', that is, localizations that have been done using an obsolete ID.
-						// We assume the default language Xliff has only current IDs, and therefore don't look for orphans in that case.
-						// This guards against cases such as recently occurred in Bloom, where a dynamic ID EditTab.AddPageDialog.Title
-						// was regarded as an obsolete id for PublishTab.Upload.Title
-						if (langId != LocalizationManager.kDefaultLang && DefaultXliffDocument.GetTransUnitForId(tu.Id) == null &&
-							!tu.Id.EndsWith(kToolTipSuffix) && !tu.Id.EndsWith(kShortcutSuffix))
-						{
-							//if we couldn't find it, maybe the id just changed and then if so re-id it.
-							var movedUnit = DefaultXliffDocument.GetTransUnitForOrphan(tu);
-							if (movedUnit == null)
-							{
-								// with dynamic strings, by definition we won't find them during a static code scan
-								if (!tu.Dynamic)
-								{
-									defunctUnits.Add(tu);
-									xliffDoc.IsDirty = true;
-									IsDirty = true;
-								}
-							}
-							else
-							{
-								if (xliffDoc.File.Body.TranslationsById.ContainsKey(tu.Id))
-								{
-									// adjust the document's internal cache
-									xliffDoc.File.Body.TranslationsById[movedUnit.Id] = xliffDoc.File.Body.TranslationsById[tu.Id];
-									xliffDoc.File.Body.TranslationsById.Remove(tu.Id);
-								}
-								tu.Id = movedUnit.Id;
-								xliffDoc.IsDirty = true;
-								IsDirty = true;
-							}
-						}
-					}
-					// Now we can delete any invalid XLiffTransUnit objects from this document.
-					foreach (var tuBad in defunctUnits)
-						xliffDoc.File.Body.RemoveTransUnit(tuBad);
+					if (!LocalizationManagerInternal<XLiffDocument>.MapToExistingLanguage.ContainsKey(pieces[0]))
+						LocalizationManagerInternal<XLiffDocument>.MapToExistingLanguage.Add(pieces[0], langId);
 				}
-				catch (Exception e)
+
+				// Identity mapping always wins.  Storing it simplifies code elsewhere.
+				LocalizationManagerInternal<XLiffDocument>.MapToExistingLanguage[langId] = langId;
+				_unloadedXliffDocuments[langId] = file;
+			}
+		}
+
+		private XLiffDocument LoadXliff(string langId)
+		{
+			var fileId = langId;
+			if (!_unloadedXliffDocuments.TryGetValue(langId, out string file))
+			{
+				// Often an xliff in a plain lang folder (like "es") contains
+				// a target-language that is more specific (like "es-ES").
+				// If we're asked to try to load the xliff for es-ES and don't find one,
+				// Try loading the one for es.
+				var pieces = langId.Split('-');
+				if (pieces.Length <= 1)
+					return null;
+				if (!_unloadedXliffDocuments.TryGetValue(pieces[0], out file))
+					return null;
+				fileId = pieces[0];
+			}
+
+			_unloadedXliffDocuments.Remove(langId);
+			var xliffDoc = XLiffDocument.Read(file);
+
+			// This might be different, typically more specific, than the name we deduced from the file path.
+			var targetLang = xliffDoc.File.TargetLang;
+
+			// Now we have some maintenance to do on MapToExistingLanguage, which might contain a spurious
+			// entry. For example, suppose we have file in the es folder whose target-language is es-ES.
+			// In MergeXliffFilesIntoCache, we made an entry saying es -> es. But the key we're really going
+			// to put into XliffDocuments is es-ES, the targetLanguage. So we want MapToExistingLanguage to
+			// have es -> es-ES.
+			// But we have to be careful. It's also possible that we have both an es folder (where target-language is es)
+			// AND an es-ES folder where targetLanguage is es-ES. We might load the plain es one first. In that
+			// case, we don't want to change the es->es entry to es -> es-ES.
+			var piecesOfTargetLang = targetLang.Split('-');
+			if (piecesOfTargetLang.Length > 1)
+			{
+				if (LocalizationManagerInternal<XLiffDocument>.MapToExistingLanguage.TryGetValue(piecesOfTargetLang[0], out string existing))
 				{
-					var msg = $"Caught exception in MergeXliffFilesIntoCache [{file}] - {e.Message}";
-#if DEBUG
-					throw new Exception(msg, e);
-#else
-					// If an error happened reading some localization file other than one we care
-					// about right now, just ignore it.
-					if (file == OwningManager.GetPathForLanguage(LocalizationManager.UILanguageId, false))
-						error = new Exception(msg, e);
-#endif
+					// There's already an entry for es. Is it a spurious one that corresponds to our own file?
+					if (existing == fileId)
+					{
+						// Yes! Fix it to point to the real entry.
+						LocalizationManagerInternal<XLiffDocument>.MapToExistingLanguage[piecesOfTargetLang[0]] =
+							targetLang;
+					}
+				}
+				else
+				{
+					// If there's not an entry for es, make one that points it to es-ES.
+					LocalizationManagerInternal<XLiffDocument>.MapToExistingLanguage.Add(piecesOfTargetLang[0], langId);
 				}
 			}
-			if (error != null)
-				throw error;
+
+			// Identity mapping always wins.  Storing it simplifies code elsewhere.
+			LocalizationManagerInternal<XLiffDocument>.MapToExistingLanguage[targetLang] = targetLang;
+
+			XliffDocuments.Add(targetLang, xliffDoc);
+			var defunctUnits = new List<XLiffTransUnit>();
+			foreach (var tu in xliffDoc.File.Body.TransUnits)
+			{
+				// This block attempts to find 'orphans', that is, localizations that have been done using an obsolete ID.
+				// We assume the default language Xliff has only current IDs, and therefore don't look for orphans in that case.
+				// This guards against cases such as recently occurred in Bloom, where a dynamic ID EditTab.AddPageDialog.Title
+				// was regarded as an obsolete id for PublishTab.Upload.Title
+				if (langId != LocalizationManager.kDefaultLang &&
+				    DefaultXliffDocument.GetTransUnitForId(tu.Id) == null &&
+				    !tu.Id.EndsWith(kToolTipSuffix) && !tu.Id.EndsWith(kShortcutSuffix))
+				{
+					//if we couldn't find it, maybe the id just changed and then if so re-id it.
+					var movedUnit = DefaultXliffDocument.GetTransUnitForOrphan(tu);
+					if (movedUnit == null)
+					{
+						// with dynamic strings, by definition we won't find them during a static code scan
+						if (!tu.Dynamic)
+						{
+							defunctUnits.Add(tu);
+							xliffDoc.IsDirty = true;
+							IsDirty = true;
+						}
+					}
+					else
+					{
+						if (xliffDoc.File.Body.TranslationsById.ContainsKey(tu.Id))
+						{
+							// adjust the document's internal cache
+							xliffDoc.File.Body.TranslationsById[movedUnit.Id] =
+								xliffDoc.File.Body.TranslationsById[tu.Id];
+							xliffDoc.File.Body.TranslationsById.Remove(tu.Id);
+						}
+
+						tu.Id = movedUnit.Id;
+						xliffDoc.IsDirty = true;
+						IsDirty = true;
+					}
+				}
+			}
+
+			// Now we can delete any invalid XLiffTransUnit objects from this document.
+			foreach (var tuBad in defunctUnits)
+				xliffDoc.File.Body.RemoveTransUnit(tuBad);
+			return xliffDoc;
 		}
 
 		/// ------------------------------------------------------------------------------------
@@ -210,6 +298,11 @@ namespace L10NSharp.XLiffUtils
 		#endregion
 
 		#region Methods for saving cache to disk
+
+		internal void SaveIfDirty()
+		{
+			SaveIfDirty(XliffDocuments.Keys);
+		}
 		/// ------------------------------------------------------------------------------------
 		/// <summary>
 		/// Saves the cache to the files from which the cache was originally loaded, but only
@@ -437,7 +530,7 @@ namespace L10NSharp.XLiffUtils
 		{
 			if (string.IsNullOrEmpty(langId) || string.IsNullOrEmpty(id))
 				return null;
-			if (!XliffDocuments.TryGetValue(langId, out var xliff))
+			if (!TryGetDocument(langId, out var xliff))
 				return null;
 			if (!xliff.File.Body.TranslationsById.TryGetValue(id, out var value))
 				return null;
@@ -856,7 +949,7 @@ namespace L10NSharp.XLiffUtils
 		/// </summary>
 		public int NumberApproved(string lang)
 		{
-			return Documents.TryGetValue(lang, out var doc) ? doc.NumberApproved : 0;
+			return TryGetDocument(lang, out var doc) ? doc.NumberApproved : 0;
 		}
 
 		/// <summary>
@@ -864,7 +957,7 @@ namespace L10NSharp.XLiffUtils
 		/// </summary>
 		public int NumberTranslated(string lang)
 		{
-			return Documents.TryGetValue(lang, out var doc) ? doc.NumberTranslated : 0;
+			return TryGetDocument(lang, out var doc) ? doc.NumberTranslated : 0;
 		}
 
 		/// <summary>
@@ -872,7 +965,7 @@ namespace L10NSharp.XLiffUtils
 		/// </summary>
 		public int StringCount(string lang)
 		{
-			return Documents.TryGetValue(lang, out var doc) ? doc.StringCount : 0;
+			return TryGetDocument(lang, out var doc) ? doc.StringCount : 0;
 		}
 	}
 }
