@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using L10NSharp.XLiffUtils;
@@ -29,7 +29,7 @@ namespace L10NSharp.XLiffUtils
 		{
 			_stringCache = cache;
 			_defaultLang = LocalizationManager.kDefaultLang;
-			var replacement = _stringCache.XliffDocuments[_defaultLang].File
+			var replacement = _stringCache.GetDocument(_defaultLang).File
 				.HardLineBreakReplacement;
 			if (replacement != null)
 				_literalNewline = replacement;
@@ -49,11 +49,11 @@ namespace L10NSharp.XLiffUtils
 			if (string.IsNullOrEmpty(locInfo.LangId))
 				return _updated;
 
-			var xliffSource = _stringCache.XliffDocuments[_defaultLang];
+			var xliffSource = _stringCache.GetDocument(_defaultLang);
 			Debug.Assert(xliffSource != null);
 
 			XLiffDocument xliffTarget;
-			if (!_stringCache.XliffDocuments.TryGetValue(locInfo.LangId, out xliffTarget))
+			if (!_stringCache.TryGetDocument(locInfo.LangId, out xliffTarget))
 			{
 				xliffTarget = new XLiffDocument();
 				xliffTarget.File.AmpersandReplacement = xliffSource.File.AmpersandReplacement;
@@ -66,7 +66,7 @@ namespace L10NSharp.XLiffUtils
 				xliffTarget.File.TargetLang = locInfo.LangId;
 				xliffTarget.IsDirty = true;
 				_updated = true;
-				_stringCache.XliffDocuments.Add(locInfo.LangId, xliffTarget);
+				_stringCache.AddDocument(locInfo.LangId, xliffTarget);
 			}
 
 			var tuSourceText = xliffSource.GetTransUnitForId(locInfo.Id);

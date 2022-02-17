@@ -77,14 +77,11 @@ namespace L10NSharp
 
 		private static bool IsDesiredUiCultureAvailable(string desiredUiLangId)
 		{
-			var ci = L10NCultureInfo.GetCultureInfo(desiredUiLangId);
-			if (GetUILanguages(true).Contains(ci))
+			if (IsLocalizationAvailable(desiredUiLangId))
 				return true;
-			// If this fallback implementation seems strange, read the really long summary
-			// comment for the unit test:
-			// Create_PreferredUiLanguageIsGenericVariant_CreatesLocalizationManagerForSpecificVariant
-			return MapToExistingLanguage.TryGetValue(desiredUiLangId, out desiredUiLangId) &&
-				IsDesiredUiCultureAvailable(desiredUiLangId);
+			return MapToExistingLanguage.TryGetValue(desiredUiLangId, out string fallbackLangId) &&
+			       fallbackLangId != desiredUiLangId && // just in case, prevent stack overflow
+			       IsDesiredUiCultureAvailable(fallbackLangId);
 		}
 
 		/// ------------------------------------------------------------------------------------
@@ -328,6 +325,13 @@ namespace L10NSharp
 				LoadedManagers.Values.SelectMany(lm => lm.GetAvailableUILanguageTags())
 					.Distinct().ToList());
 			return langsHavinglocalizations;
+		}
+
+		public static bool IsLocalizationAvailable(string langId)
+		{
+			if (LoadedManagers == null)
+				return false;
+			return LoadedManagers.Values.Any(m => m.IsUILanguageAvailable(langId));
 		}
 
 		/// <summary>
@@ -867,7 +871,7 @@ namespace L10NSharp
 		{
 			if (!LoadedManagers.TryGetValue(appId, out var lm))
 				return;
-			if (!lm.StringCache.Documents.TryGetValue("en", out var newDoc))
+			if (!lm.StringCache.TryGetDocument("en", out var newDoc))
 				return;
 			var oldDocPath = Path.Combine(installedStringFileFolder,
 				GetTranslationFileNameForLanguage(appId, "en"));

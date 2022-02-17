@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Collections.Generic;
 using System.IO;
@@ -8,6 +8,7 @@ using System.Text;
 using System.Windows.Forms;
 using L10NSharp.TMXUtils;
 using L10NSharp.UI;
+using L10NSharp.XLiffUtils;
 
 namespace L10NSharp.TMXUtils
 {
@@ -28,6 +29,12 @@ namespace L10NSharp.TMXUtils
 		private readonly TMXTransUnitUpdater _tuUpdater;
 
 		public Dictionary<string, TMXDocument> Documents { get; }
+		public bool TryGetDocument(string langId, out TMXDocument doc)
+		{
+			return Documents.TryGetValue(langId, out doc);
+		}
+
+		public IEnumerable<string> AvailableLangKeys => Documents.Keys;
 		public List<LocTreeNode<TMXDocument>> LeafNodeList { get; }
 		internal TMXLocalizationManager OwningManager { get; }
 		public TMXDocument TmxDocument { get; }

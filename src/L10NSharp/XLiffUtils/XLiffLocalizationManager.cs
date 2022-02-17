@@ -229,7 +229,7 @@ namespace L10NSharp.XLiffUtils
 				}
 			}
 
-			stringCache.SaveIfDirty(stringCache.XliffDocuments.Keys);
+			stringCache.SaveIfDirty();
 		}
 
 		/// <summary> Sometimes, on Linux, there is an empty DefaultStringFile.  This causes problems. </summary>
@@ -554,9 +554,12 @@ namespace L10NSharp.XLiffUtils
 		}
 
 		/// ------------------------------------------------------------------------------------
-		private string GetLangIdFromXliffFileName(string fileName)
+		internal static string GetLangIdFromXliffFileName(string fileName)
 		{
-			Debug.Assert(!LocalizationManager.UseLanguageCodeFolders);
+			if (LocalizationManager.UseLanguageCodeFolders)
+			{
+				return Path.GetFileName(Path.GetDirectoryName(fileName));
+			}
 			fileName = fileName.Substring(0, fileName.Length - FileExtension.Length);
 			int i = fileName.LastIndexOf('.');
 			return i < 0 ? null : fileName.Substring(i + 1);
@@ -1351,8 +1354,10 @@ namespace L10NSharp.XLiffUtils
 		/// </summary>
 		public IEnumerable<string> GetAvailableUILanguageTags()
 		{
-			return StringCache.Documents.Keys.ToList();
+			return StringCache.AvailableLangKeys.ToList();
 		}
+
+		public bool IsUILanguageAvailable(string langId) => StringCache.TryGetDocument(langId, out XLiffDocument dummy);
 
 		/// <summary>
 		/// If the given file exists, return its parent folder name as a language tag if it

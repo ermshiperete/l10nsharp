@@ -1168,6 +1168,8 @@ namespace L10NSharp.TMXUtils
 			return tags;
 		}
 
+		public bool IsUILanguageAvailable(string langId) => GetAvailableUILanguageTags().Contains(langId);
+
 		/// <summary>
 		/// Gets the language code from the folder name, if using language code folders
 		/// </summary>
