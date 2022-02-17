@@ -77,6 +77,8 @@ namespace L10NSharp
 		/// </summary>
 		IEnumerable<string> GetAvailableUILanguageTags();
 
+		bool IsUILanguageAvailable(string langId);
+
 		bool DoesCustomizedTranslationExistForLanguage(string langId);
 
 		/// ------------------------------------------------------------------------------------

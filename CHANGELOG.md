@@ -23,6 +23,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Changed
 
 - Added ILocalizationManager parameter to StringsLocalizedHandler
+- It's long been a convention that xliff file names are module.lang.xlf (e.g., Bloom.fr.xlf)
+or else kept in language-code folders (.../en/Bloom.xlf) if UseLanguageCodeFolders is set.
+With the latest changes, this is required: the language name indicated in these ways in the file
+name must match the language declared in the target-language attribute, or at least match the
+first element of the target-language (e.g., a file with target-languge es-ES may be stored in
+file like Bloom.es.xlf or .../es/Bloom.xlf).
 
 ## [4.1.0] - 2021-03-04
 
