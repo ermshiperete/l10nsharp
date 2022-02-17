@@ -4,12 +4,14 @@
 using System.Collections.Generic;
 using System.Windows.Forms;
 using L10NSharp.UI;
+using L10NSharp.XLiffUtils;
 
 namespace L10NSharp
 {
 	internal interface ILocalizedStringCache<T>
 	{
-		Dictionary<string, T> Documents { get; }
+		bool TryGetDocument(string langId, out T doc);
+		IEnumerable<string> AvailableLangKeys { get; }
 		List<LocTreeNode<T>> LeafNodeList { get; }
 		string GetString(string langId, string id);
 		string GetString(string langId, string id, bool formatForDisplay);

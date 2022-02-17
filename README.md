@@ -23,6 +23,16 @@ using (var lm = LocalizationManager.Create(TranslationMemory.XLiff, lang, "Sampl
 }
 ```
 
+One of two conventions must be used to name xlf files; this enables lazy loading so that
+only the xlf files for languages that are actually in use are loaded into memory.
+By default, directoryOfInstalledFiles contains files named Whatever.lang.xlf; if
+LocalizationManager.UseLanguageCodeFolders is true, then they are in folders whose names
+are the language tags. These names must match the target-language declared in the XLF
+for lazy loading to work properly. If the target-language is a multi-part tag (like es-ES),
+the lang component in the file path may be either the full tag (Whatever.es-ES.xlf or
+es-ES/Whatever.xlf) or its first component, the actual language tag (Whatever.es.xlf
+or es/Whatever.xlf).
+
 ## L10NSharpExtender
 
 To localize a Windows Forms form or control, simply add the `L10NSharpExtender`. It will
