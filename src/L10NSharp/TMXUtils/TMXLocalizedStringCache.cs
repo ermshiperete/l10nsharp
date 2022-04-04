@@ -132,8 +132,10 @@ namespace L10NSharp.TMXUtils
 					if (pieces.Length > 1)
 					{
 						if (!LocalizationManagerInternal<TMXDocument>.MapToExistingLanguage.ContainsKey
-						(pieces[0]))
-							LocalizationManagerInternal<TMXDocument>.MapToExistingLanguage.Add(pieces[0], langId);
+							    (pieces[0]))
+						{
+							LocalizationManagerInternal<TMXDocument>.MapToExistingLanguage.TryAdd(pieces[0], langId);
+						}
 					}
 					// Identity mapping always wins.  Storing it simplifies code elsewhere.
 					LocalizationManagerInternal<TMXDocument>.MapToExistingLanguage[langId] = langId;
