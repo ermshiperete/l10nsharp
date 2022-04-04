@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -28,9 +29,9 @@ namespace L10NSharp.XLiffUtils
 		/// XliffDocuments should be kept private, and any access to it should go through methods that
 		/// take lazy loading of Xliff documents into account.
 		/// </summary>
-		private readonly Dictionary<string, XLiffDocument> XliffDocuments = new Dictionary<string, XLiffDocument>();
+		private readonly ConcurrentDictionary<string, XLiffDocument> XliffDocuments = new ConcurrentDictionary<string, XLiffDocument>();
 
-		private readonly Dictionary<string, string> _unloadedXliffDocuments = new Dictionary<string, string>();
+		private readonly ConcurrentDictionary<string, string> _unloadedXliffDocuments = new ConcurrentDictionary<string, string>();
 
 		#region Loading methods
 
@@ -59,7 +60,7 @@ namespace L10NSharp.XLiffUtils
 			{
 				DefaultXliffDocument = CreateEmptyStringFile();
 				DefaultXliffDocument.File.Original = OwningManager.Name + ".dll";
-				XliffDocuments.Add(LocalizationManager.kDefaultLang, DefaultXliffDocument);
+				XliffDocuments.TryAdd(LocalizationManager.kDefaultLang, DefaultXliffDocument);
 			}
 			_tuUpdater = new XLiffTransUnitUpdater(this);
 
@@ -83,10 +84,19 @@ namespace L10NSharp.XLiffUtils
 
 		public bool TryGetDocument(string langId, out XLiffDocument doc)
 		{
+			// It's tempting to try to do this with the ConcurrentDictionary method GetOrAdd.
+			// But it's not guaranteed that the doc which LoadXLiff loads will be put in
+			// the dictionary with exactly the key langId. And it would not help much...the action
+			// to create the new value if not found still runs unlocked, so several threads could be
+			// doing it at once in either case.
 			if (XliffDocuments.TryGetValue(langId, out doc))
 				return true;
-			doc = LoadXliff(langId);
-			return doc != null;
+			lock (LocalizationManagerInternal<XLiffDocument>.LazyLoadLock)
+			{
+				LoadXliff(langId);
+			}
+
+			return XliffDocuments.TryGetValue(langId, out doc);
 		}
 
 		public IEnumerable<string> AvailableLangKeys
@@ -97,7 +107,10 @@ namespace L10NSharp.XLiffUtils
 				// as well go ahead and load them properly.
 				foreach (var langId in _unloadedXliffDocuments.Keys.ToList())
 				{
-					LoadXliff(langId);
+					// If by any chance multiple threads are doing this, we'll
+					// improve performance if some of the attempted adds work out to
+					// simple retrievals.
+					TryGetDocument(langId, out _);
 				}
 
 				return XliffDocuments.Keys;
@@ -106,10 +119,12 @@ namespace L10NSharp.XLiffUtils
 
 		internal void AddDocument(string langId, XLiffDocument doc)
 		{
-			XliffDocuments.Add(langId, doc);
+			XliffDocuments.TryAdd(langId, doc);
 		}
 
-		/// ------------------------------------------------------------------------------------
+		/// <summary>
+		/// May only be called from constructor. Not thread-safe.
+		/// </summary>
 		private void MergeXliffFilesIntoCache(IEnumerable<string> xliffFiles)
 		{
 			DefaultXliffDocument = XLiffDocument.Read(OwningManager.DefaultStringFilePath); // read the generated file
@@ -128,7 +143,7 @@ namespace L10NSharp.XLiffUtils
 				}
 			}
 
-			XliffDocuments.Add(LocalizationManager.kDefaultLang, DefaultXliffDocument);
+			XliffDocuments.TryAdd(LocalizationManager.kDefaultLang, DefaultXliffDocument);
 			// Map the default language onto itself.
 			LocalizationManagerInternal<XLiffDocument>.MapToExistingLanguage[LocalizationManager.kDefaultLang] =
 				LocalizationManager.kDefaultLang;
@@ -138,25 +153,19 @@ namespace L10NSharp.XLiffUtils
 				var langId = XLiffLocalizationManager.GetLangIdFromXliffFileName(file);
 				Debug.Assert(!string.IsNullOrEmpty(langId));
 				Debug.Assert(langId != LocalizationManager.kDefaultLang);
-				// Provide a mapping from a specific variant of a language to the base language.
-				// For example, "es-ES" can provide translations for "es" if we don't have "es" specifically.
-				var pieces = langId.Split('-');
-				if (pieces.Length > 1)
-				{
-					if (!LocalizationManagerInternal<XLiffDocument>.MapToExistingLanguage.ContainsKey(pieces[0]))
-						LocalizationManagerInternal<XLiffDocument>.MapToExistingLanguage.Add(pieces[0], langId);
-				}
-
-				// Identity mapping always wins.  Storing it simplifies code elsewhere.
-				LocalizationManagerInternal<XLiffDocument>.MapToExistingLanguage[langId] = langId;
 				_unloadedXliffDocuments[langId] = file;
 			}
 		}
 
-		private XLiffDocument LoadXliff(string langId)
+		/// <summary>
+		/// Load the language data, if any, from the unloaded xliff file associated  with langId
+		/// (or its primary language, if different) and update MapToExistingLanguage according
+		/// to what we find. 
+		/// Use only from TryGetDocument. Should hold LazyLoadLock.
+		/// </summary>
+		private void LoadXliff(string langId)
 		{
-			var fileId = langId;
-			if (!_unloadedXliffDocuments.TryGetValue(langId, out string file))
+			if (!_unloadedXliffDocuments.TryRemove(langId, out string file))
 			{
 				// Often an xliff in a plain lang folder (like "es") contains
 				// a target-language that is more specific (like "es-ES").
@@ -164,50 +173,42 @@ namespace L10NSharp.XLiffUtils
 				// Try loading the one for es.
 				var pieces = langId.Split('-');
 				if (pieces.Length <= 1)
-					return null;
-				if (!_unloadedXliffDocuments.TryGetValue(pieces[0], out file))
-					return null;
-				fileId = pieces[0];
+					return;
+				if (!_unloadedXliffDocuments.TryRemove(pieces[0], out file))
+					return;
 			}
 
-			_unloadedXliffDocuments.Remove(fileId);
 			var xliffDoc = XLiffDocument.Read(file);
 
 			// This might be different, typically more specific, than the name we deduced from the file path.
 			var targetLang = xliffDoc.File.TargetLang;
 
-			// Now we have some maintenance to do on MapToExistingLanguage, which might contain a spurious
-			// entry. For example, suppose we have file in the es folder whose target-language is es-ES.
-			// In MergeXliffFilesIntoCache, we made an entry saying es -> es. But the key we're really going
-			// to put into XliffDocuments is es-ES, the targetLanguage. So we want MapToExistingLanguage to
-			// have es -> es-ES.
-			// But we have to be careful. It's also possible that we have both an es folder (where target-language is es)
-			// AND an es-ES folder where targetLanguage is es-ES. We might load the plain es one first. In that
-			// case, we don't want to change the es->es entry to es -> es-ES.
+			// Now we have some maintenance to do on MapToExistingLanguage, which does not yet contain data
+			// about this file. It is definitely the one to use for targetLanguage.
+			LocalizationManagerInternal<XLiffDocument>.MapToExistingLanguage[targetLang] = targetLang;
+
 			var piecesOfTargetLang = targetLang.Split('-');
 			if (piecesOfTargetLang.Length > 1)
 			{
-				if (LocalizationManagerInternal<XLiffDocument>.MapToExistingLanguage.TryGetValue(piecesOfTargetLang[0], out string existing))
+				var rootLangId = piecesOfTargetLang[0];
+				// If we don't already have an xliff to use for the root language, tell it to use this one.
+				// For example, suppose we have file in the es folder whose target-language is es-ES.
+				// We probably want MapToExistingLanguage to have es -> es-ES (as well as es-ES -> es-ES).
+				// But we have to be careful. It's also possible that we have both an es folder (where target-language is es)
+				// AND an es-ES folder where targetLanguage is es-ES. We might load the plain es one either first or second.
+				// In those cases, we don't want to get es -> es-ES. In case we haven't already loaded it,
+				// we check that the root language isn't still waiting to load (in _unlodedXliffDocuments);
+				// in case we already did, we make sure there isn't already a value under that key in MapToExistingLanguage.
+				// (This also means that, in case we have e.g. es-ES and also es-BR but no plain es, one of the two
+				// wins out as the one to use for es, and doesn't change later.)
+				if (!LocalizationManagerInternal<XLiffDocument>.MapToExistingLanguage.TryGetValue(rootLangId, out _)
+				    && !_unloadedXliffDocuments.TryGetValue(rootLangId, out _))
 				{
-					// There's already an entry for es. Is it a spurious one that corresponds to our own file?
-					if (existing == fileId)
-					{
-						// Yes! Fix it to point to the real entry.
-						LocalizationManagerInternal<XLiffDocument>.MapToExistingLanguage[piecesOfTargetLang[0]] =
-							targetLang;
-					}
-				}
-				else
-				{
-					// If there's not an entry for es, make one that points it to es-ES.
-					LocalizationManagerInternal<XLiffDocument>.MapToExistingLanguage.Add(piecesOfTargetLang[0], langId);
+					LocalizationManagerInternal<XLiffDocument>.MapToExistingLanguage[rootLangId] = targetLang;
 				}
 			}
 
-			// Identity mapping always wins.  Storing it simplifies code elsewhere.
-			LocalizationManagerInternal<XLiffDocument>.MapToExistingLanguage[targetLang] = targetLang;
-
-			XliffDocuments.Add(targetLang, xliffDoc);
+			XliffDocuments.TryAdd(targetLang, xliffDoc);
 			var defunctUnits = new List<XLiffTransUnit>();
 			foreach (var tu in xliffDoc.File.Body.TransUnits)
 			{
@@ -251,7 +252,6 @@ namespace L10NSharp.XLiffUtils
 			// Now we can delete any invalid XLiffTransUnit objects from this document.
 			foreach (var tuBad in defunctUnits)
 				xliffDoc.File.Body.RemoveTransUnit(tuBad);
-			return xliffDoc;
 		}
 
 		/// ------------------------------------------------------------------------------------

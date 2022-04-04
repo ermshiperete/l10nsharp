@@ -2,6 +2,7 @@
 // This software is licensed under the MIT License (http://opensource.org/licenses/MIT)
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing;
@@ -23,10 +24,21 @@ namespace L10NSharp
 
 		/// <summary>
 		/// Map from the given language code to a variant we actually have.  (It can map from a
-		/// language code onto itself.)
+		/// language code onto itself. It can also map a code we know we don't have any variant of
+		/// onto itself.)
+		/// Because this is a concurrent dictionary, and lazy loading only puts correct data into
+		/// it as a result of loading xliff files, it is safe (and desirable for performance) to
+		/// attempt a retrieval from it without locking. However, modifications and possible loading
+		/// of xliff files requires locking on LazyLoadLock. Also, since the data is incomplete
+		/// until all lazy loading has been done, if you don't get a hit you must take steps to
+		/// try to load any relevant missing data. This is currently handled in
+		/// MapToExistingLanguageIfPossible(), which should always be used for simple retrievals.
 		/// </summary>
-		internal static Dictionary<string, string> MapToExistingLanguage = new Dictionary<string, string>();
+		internal static ConcurrentDictionary<string, string> MapToExistingLanguage = new ConcurrentDictionary<string, string>();
 
+		// If documents are loaded lazily, this lock must be held while loading one, or while using MapToExistingLanguage
+		// in a way that might cause loading.
+		internal static object LazyLoadLock = new object();
 
 		private static readonly Dictionary<string, ILocalizationManagerInternal<T>> s_loadedManagers =
 			new Dictionary<string, ILocalizationManagerInternal<T>>();
@@ -79,9 +91,21 @@ namespace L10NSharp
 		{
 			if (IsLocalizationAvailable(desiredUiLangId))
 				return true;
-			return MapToExistingLanguage.TryGetValue(desiredUiLangId, out string fallbackLangId) &&
-			       fallbackLangId != desiredUiLangId && // just in case, prevent stack overflow
-			       IsDesiredUiCultureAvailable(fallbackLangId);
+			// We may know about a closely related language (e.g., we have es-ES but were asked for es-BR).
+			// If so we want to return true.
+			var fallbackLangId = MapToExistingLanguageIfPossible(desiredUiLangId);
+			// However, MapToExistingLanguageIfPossible often returns the code we started with.
+			// This can indicate that we don't need to map it since we have exactly that localization,
+			// but in such a case, IsLocalizationAvailable would have returned true above and we would
+			// not get here. However, it also returns an unchanged code for a locale about which we
+			// know nothing at all...there is no closely related language for which we have a
+			// localization. In such a case, if we don't detect it, we'd be making a recursive call
+			// with the same argument, which would produce stack overflow. So if we didn't find
+			// a different language to try, we must fail now.
+			if (fallbackLangId == desiredUiLangId)
+				return false;
+
+			return IsDesiredUiCultureAvailable(fallbackLangId);
 		}
 
 		/// ------------------------------------------------------------------------------------
@@ -646,12 +670,48 @@ namespace L10NSharp
 		/// Get the best possible language id to use for retrieving a string.  In most cases,
 		/// we would expect an identity transformation.  But this allows "es-ES" to map to "es"
 		/// and vice versa depending on the actual data available.
+		/// With lazy loading of xliff documents, it's possible that MapToExistingLanguage does
+		/// not yet contain data about this language. In that case, get the lock for
+		/// loading xliff docs, load any relevant ones, and try again.
 		/// </summary>
 		internal static string MapToExistingLanguageIfPossible(string langId)
 		{
 			if (string.IsNullOrEmpty(langId))
 				return null;
-			return MapToExistingLanguage.TryGetValue(langId, out var realId) ? realId : langId;
+			// It's a concurrent dictionary, so we can (for performance) try this without a lock.
+			if (MapToExistingLanguage.TryGetValue(langId, out var realId))
+				return realId;
+			lock (LazyLoadLock)
+			{
+				// Load any available data in any LM related to this language code.
+				// If files are loaded, this will add appropriate entries to MapToExistingLanguage.
+				foreach (var lm in LoadedManagers.Values)
+					lm.StringCache.TryGetDocument(langId, out _);
+				if (MapToExistingLanguage.TryGetValue(langId, out var realId2))
+					return realId2;
+
+
+				var pieces = langId.Split('-');
+				// The above will find the appropriate result
+				// if we are looking for, e.g., es-ES and have loaded a file in the es folder
+				// which actually contains es-ES data. But it's also just conceivable that we have such data
+				// and are now looking for es-BR. The code above will put entries in MapToExistingLanguage,
+				// if they weren't there already, for es->es-ES and es-ES->es-ES,
+				// whether we found that data in the es folder or the es-ES one,
+				// but now (since we didn't find separate data for es-BR) we'd like to map that to es-ES, too.
+				if (MapToExistingLanguage.ContainsKey(pieces[0]))
+				{
+					var realLangId2 = MapToExistingLanguage[pieces[0]];
+					MapToExistingLanguage.TryAdd(langId, realLangId2);
+					return realLangId2;
+				}
+
+				// In case we haven't found ANY useful mapping for langId (we haven't localized into it or any
+				// variation of it), we don't need to do all the fallback logic again next time.
+				if (!MapToExistingLanguage.ContainsKey(langId))
+					MapToExistingLanguage[langId] = langId;
+				return langId;
+			}
 		}
 
 		/// ------------------------------------------------------------------------------------
@@ -707,32 +767,7 @@ namespace L10NSharp
 			var bestAnswer = LoadedManagers.Values.Select(lm =>
 					lm.StringCache.GetValueForExactLangAndId(realLangId, stringId, true))
 				.FirstOrDefault(text => !string.IsNullOrEmpty(text));
-			if (string.IsNullOrEmpty(bestAnswer) && langId.Contains('-') &&
-				!MapToExistingLanguage.ContainsKey(langId))
-			{
-				var pieces = langId.Split('-');
-				if (MapToExistingLanguage.ContainsKey(pieces[0]))
-				{
-					var realLangId2 = MapToExistingLanguage[pieces[0]];
-					MapToExistingLanguage.Add(langId, realLangId2);
-					if (realLangId != realLangId2)
-					{
-						bestAnswer = LoadedManagers.Values.Select(lm =>
-								lm.StringCache.GetValueForExactLangAndId(realLangId2, stringId, true))
-							.FirstOrDefault(text => !string.IsNullOrEmpty(text));
-						if (!string.IsNullOrEmpty(bestAnswer))
-						{
-							languageIdUsed = realLangId2;
-							return bestAnswer;
-						}
-					}
-				}
-
-				if (!MapToExistingLanguage.ContainsKey(langId))
-					MapToExistingLanguage[langId] = langId; // prevent trying this again and again.
-				languageIdUsed = null;
-				return null;
-			}
+			
 			languageIdUsed = realLangId;
 			return bestAnswer;
 		}
