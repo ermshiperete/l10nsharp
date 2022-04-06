@@ -94,14 +94,9 @@ namespace L10NSharp
 			// We may know about a closely related language (e.g., we have es-ES but were asked for es-BR).
 			// If so we want to return true.
 			var fallbackLangId = MapToExistingLanguageIfPossible(desiredUiLangId);
-			// However, MapToExistingLanguageIfPossible often returns the code we started with.
-			// This can indicate that we don't need to map it since we have exactly that localization,
-			// but in such a case, IsLocalizationAvailable would have returned true above and we would
-			// not get here. However, it also returns an unchanged code for a locale about which we
-			// know nothing at all...there is no closely related language for which we have a
-			// localization. In such a case, if we don't detect it, we'd be making a recursive call
-			// with the same argument, which would produce stack overflow. So if we didn't find
-			// a different language to try, we must fail now.
+			// If the input and output of MapToExistingLanguageIfPossible are the same then there is no mapping
+			// known for the language and we should return false instead of infinitely recursing.
+			// (Storing such redundant mappings makes other code more performant.)
 			if (fallbackLangId == desiredUiLangId)
 				return false;
 
@@ -690,8 +685,6 @@ namespace L10NSharp
 				if (MapToExistingLanguage.TryGetValue(langId, out var realId2))
 					return realId2;
 
-
-				var pieces = langId.Split('-');
 				// The above will find the appropriate result
 				// if we are looking for, e.g., es-ES and have loaded a file in the es folder
 				// which actually contains es-ES data. But it's also just conceivable that we have such data
@@ -699,6 +692,7 @@ namespace L10NSharp
 				// if they weren't there already, for es->es-ES and es-ES->es-ES,
 				// whether we found that data in the es folder or the es-ES one,
 				// but now (since we didn't find separate data for es-BR) we'd like to map that to es-ES, too.
+				var pieces = langId.Split('-');
 				if (MapToExistingLanguage.ContainsKey(pieces[0]))
 				{
 					var realLangId2 = MapToExistingLanguage[pieces[0]];

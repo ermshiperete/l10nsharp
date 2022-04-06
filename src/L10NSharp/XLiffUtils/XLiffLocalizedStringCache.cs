@@ -93,7 +93,7 @@ namespace L10NSharp.XLiffUtils
 				return true;
 			lock (LocalizationManagerInternal<XLiffDocument>.LazyLoadLock)
 			{
-				LoadXliff(langId);
+				LoadXliffAndUpdateExistingLanguageMap(langId);
 			}
 
 			return XliffDocuments.TryGetValue(langId, out doc);
@@ -163,7 +163,7 @@ namespace L10NSharp.XLiffUtils
 		/// to what we find. 
 		/// Use only from TryGetDocument. Should hold LazyLoadLock.
 		/// </summary>
-		private void LoadXliff(string langId)
+		private void LoadXliffAndUpdateExistingLanguageMap(string langId)
 		{
 			if (!_unloadedXliffDocuments.TryRemove(langId, out string file))
 			{

@@ -478,6 +478,8 @@ namespace L10NSharp
 		/// <summary>
 		/// Gets a string for the specified string id. The englishText is returned when
 		/// a string cannot be found for the specified id and the current UI language.
+		/// Currently this and other overloads are intended to be thread-safe when
+		/// the xliff backing store is used.
 		/// </summary>
 		/// ------------------------------------------------------------------------------------
 		public static string GetString(string stringId, string englishText)
