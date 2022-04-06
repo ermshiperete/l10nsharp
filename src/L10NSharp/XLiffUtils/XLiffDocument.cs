@@ -82,8 +82,8 @@ namespace L10NSharp.XLiffUtils
 		/// ------------------------------------------------------------------------------------
 		public IEnumerable<XLiffTransUnit> GetTransUnitsForTextInLang(string langId, string text)
 		{
-			return from tu in File.Body.TransUnits
-				let variant = tu.GetVariantForLang(langId)
+			return from tu in File.Body.TransUnitsUnordered
+				   let variant = tu.GetVariantForLang(langId)
 				where variant != null && variant.Value == text
 				select tu;
 		}
@@ -162,7 +162,7 @@ namespace L10NSharp.XLiffUtils
 			var langId = xLiffDoc.File.TargetLang;
 			if (string.IsNullOrEmpty(langId))
 				langId = xLiffDoc.File.SourceLang;
-			foreach (var tu in xLiffDoc.File.Body.TransUnits)
+			foreach (var tu in xLiffDoc.File.Body.TransUnitsUnordered)
 			{
 				if (xLiffDoc.File.Body.TranslationsById.ContainsKey(tu.Id))
 				{
@@ -176,7 +176,7 @@ namespace L10NSharp.XLiffUtils
 				{
 					var target = tu.GetVariantForLang(langId);
 					if (target != null && !string.IsNullOrEmpty(target.Value))
-						xLiffDoc.File.Body.TranslationsById.Add(tu.Id, target.Value);
+						xLiffDoc.File.Body.TranslationsById[tu.Id] = target.Value;
 				}
 			}
 
@@ -189,10 +189,13 @@ namespace L10NSharp.XLiffUtils
 		/// When we change ids after people have already been localizing, we have a BIG PROBLEM.
 		/// This helps with the common case were we just changed the hierarchical organization of the id,
 		/// that is, the parts of the id before th final '.'.
+		/// If provided with the source document of the possible orphan, will not answer one that
+		/// has an ID matching something in that. (This argument should always be supplied, but
+		/// for backwards compatibility we allow it to be omitted.)
 		/// </summary>
-		public XLiffTransUnit GetTransUnitForOrphan(XLiffTransUnit orphan)
+		public XLiffTransUnit GetTransUnitForOrphan(XLiffTransUnit orphan, XLiffBody source = null)
 		{
-			return File.Body.GetTransUnitForOrphan(orphan);
+			return File.Body.GetTransUnitForOrphan(orphan, source);
 		}
 
 		/// <summary>

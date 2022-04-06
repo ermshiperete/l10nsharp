@@ -1217,9 +1217,9 @@ namespace L10NSharp.XLiffUtils
 
 			// write out the newly-found units, comparing against units with the same ids
 			// found in the old XLIFF file.
-			foreach (var tu in xliffNew.File.Body.TransUnits)
+			foreach (var tu in xliffNew.File.Body.TransUnitsUnordered)
 			{
-				xliffOutput.File.Body.TransUnits.Add(tu);
+				xliffOutput.File.Body.AddTransUnit(tu);
 				if (tu.Dynamic)
 					++newDynamicCount;
 				if (xliffOld != null)
@@ -1271,12 +1271,12 @@ namespace L10NSharp.XLiffUtils
 			// in the new scan.
 			if (xliffOld != null)
 			{
-				foreach (var tu in xliffOld.File.Body.TransUnits)
+				foreach (var tu in xliffOld.File.Body.TransUnitsUnordered)
 				{
 					var tuNew = xliffNew.File.Body.GetTransUnitForId(tu.Id);
 					if (tuNew == null)
 					{
-						xliffOutput.File.Body.TransUnits.Add(tu);
+						xliffOutput.File.Body.AddTransUnit(tu);
 						if (tu.Dynamic)
 						{
 							++missingDynamicStringCount;
@@ -1345,7 +1345,6 @@ namespace L10NSharp.XLiffUtils
 						Console.WriteLine("    {0}", id);
 				}
 			}
-			xliffOutput.File.Body.TransUnits.Sort(XLiffLocalizedStringCache.TuComparer);
 			return xliffOutput;
 		}
 

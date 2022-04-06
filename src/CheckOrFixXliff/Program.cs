@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
@@ -203,7 +203,7 @@ namespace CheckOrFixXliff
 			var doc = XLiffDocument.Read(filename);
 			var dictSourceMarkers = new Dictionary<string, int>();
 			var dictTargetMarkers = new Dictionary<string, int>();
-			foreach (var tu in doc.File.Body.TransUnits)
+			foreach (var tu in doc.File.Body.TransUnitsUnordered)
 			{
 				if (tu.Source == null || tu.Target == null)
 					continue;

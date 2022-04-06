@@ -2,6 +2,7 @@
 // This software is licensed under the MIT License (http://opensource.org/licenses/MIT)
 
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using System.Xml.Linq;
 using L10NSharp.XLiffUtils;
@@ -185,9 +186,9 @@ namespace L10NSharp.Tests
 
 			var mergedDoc = XLiffLocalizationManager.MergeXliffDocuments(newDoc, oldDoc, true);
 			Assert.IsNotNull(mergedDoc);
-			Assert.That(5, Is.EqualTo(oldDoc.File.Body.TransUnits.Count));
-			Assert.That(6, Is.EqualTo(newDoc.File.Body.TransUnits.Count));
-			Assert.That(8, Is.EqualTo(mergedDoc.File.Body.TransUnits.Count));
+			Assert.That(5, Is.EqualTo(oldDoc.File.Body.TransUnitsUnordered.Count()));
+			Assert.That(6, Is.EqualTo(newDoc.File.Body.TransUnitsUnordered.Count()));
+			Assert.That(8, Is.EqualTo(mergedDoc.File.Body.TransUnitsUnordered.Count()));
 
 			var tu = mergedDoc.GetTransUnitForId("This.test");
 			CheckMergedTransUnit(tu, "This is a test.",

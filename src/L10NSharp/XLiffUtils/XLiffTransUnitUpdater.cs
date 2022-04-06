@@ -203,7 +203,7 @@ namespace L10NSharp.XLiffUtils
 			// If we're removing an existing translation, we can quit now.
 			if (string.IsNullOrEmpty(newValue))
 			{
-				xliffTarget.File.Body.TranslationsById.Remove(tuId);
+				xliffTarget.File.Body.TranslationsById.TryRemove(tuId, out _);
 				return tuTarget;
 			}
 

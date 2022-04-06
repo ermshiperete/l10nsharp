@@ -137,7 +137,7 @@ namespace L10NSharp.XLiffUtils
 				if (!XLiffLocalizationManager.ScanningForCurrentStrings)
 				{
 					var defaultInstalledXliffDoc = XLiffDocument.Read(OwningManager.DefaultInstalledStringFilePath);
-					foreach (var tu in defaultInstalledXliffDoc.File.Body.TransUnits)
+					foreach (var tu in defaultInstalledXliffDoc.File.Body.TransUnitsUnordered)
 						DefaultXliffDocument.File.Body.AddTransUnitOrVariantFromExisting(tu,
 							LocalizationManager.kDefaultLang);
 				}
@@ -210,7 +210,7 @@ namespace L10NSharp.XLiffUtils
 
 			XliffDocuments.TryAdd(targetLang, xliffDoc);
 			var defunctUnits = new List<XLiffTransUnit>();
-			foreach (var tu in xliffDoc.File.Body.TransUnits)
+			foreach (var tu in xliffDoc.File.Body.TransUnits) // need a list here because we may modify it while enumerating
 			{
 				// This block attempts to find 'orphans', that is, localizations that have been done using an obsolete ID.
 				// We assume the default language Xliff has only current IDs, and therefore don't look for orphans in that case.
@@ -221,7 +221,7 @@ namespace L10NSharp.XLiffUtils
 				    !tu.Id.EndsWith(kToolTipSuffix) && !tu.Id.EndsWith(kShortcutSuffix))
 				{
 					//if we couldn't find it, maybe the id just changed and then if so re-id it.
-					var movedUnit = DefaultXliffDocument.GetTransUnitForOrphan(tu);
+					var movedUnit = DefaultXliffDocument.GetTransUnitForOrphan(tu, xliffDoc.File.Body);
 					if (movedUnit == null)
 					{
 						// with dynamic strings, by definition we won't find them during a static code scan
@@ -239,10 +239,14 @@ namespace L10NSharp.XLiffUtils
 							// adjust the document's internal cache
 							xliffDoc.File.Body.TranslationsById[movedUnit.Id] =
 								xliffDoc.File.Body.TranslationsById[tu.Id];
-							xliffDoc.File.Body.TranslationsById.Remove(tu.Id);
+							xliffDoc.File.Body.TranslationsById.TryRemove(tu.Id, out _);
 						}
 
+						// Note: this function is used inside a lock, so we don't have to worry
+						// about other threads interfering here.
+						xliffDoc.File.Body.RemoveTransUnit(tu);
 						tu.Id = movedUnit.Id;
+						xliffDoc.File.Body.AddTransUnit(tu);
 						xliffDoc.IsDirty = true;
 						IsDirty = true;
 					}
@@ -362,7 +366,7 @@ namespace L10NSharp.XLiffUtils
 			if (OwningManager != null && OwningManager.Name != null)
 				xliffOutput.File.Original = OwningManager.Name + ".dll";
 
-			foreach (var tu in DefaultXliffDocument.File.Body.TransUnits)
+			foreach (var tu in DefaultXliffDocument.File.Body.TransUnitsUnordered)
 			{
 				var tuTarget = xliffOriginal.File.Body.GetTransUnitForId(tu.Id);
 				XLiffTransUnitVariant tuv = null;
@@ -376,7 +380,6 @@ namespace L10NSharp.XLiffUtils
 				newTu.Notes = tu.CopyNotes();
 				xliffOutput.AddTransUnit(newTu);
 			}
-			xliffOutput.File.Body.TransUnits.Sort(TuComparer);
 			xliffOutput.Save(OwningManager.GetPathForLanguage(langId, true));
 		}
 		#endregion
@@ -674,7 +677,6 @@ namespace L10NSharp.XLiffUtils
 		/// ------------------------------------------------------------------------------------
 		public void LoadGroupNodes(TreeNodeCollection topCollection)
 		{
-			DefaultXliffDocument.File.Body.TransUnits.Sort(TuComparer);
 			LeafNodeList.Clear();
 
 			foreach (var tu in GetTranslationUnitsForTree())
@@ -716,7 +718,7 @@ namespace L10NSharp.XLiffUtils
 		/// ------------------------------------------------------------------------------------
 		private IEnumerable<XLiffTransUnit> GetTranslationUnitsForTree()
 		{
-			foreach (var tu in DefaultXliffDocument.File.Body.TransUnits)
+			foreach (var tu in DefaultXliffDocument.File.Body.TransUnitsUnordered)
 			{
 				// If the translation unit is not for a tooltip or shortcutkey, then return it.
 				if (!tu.Id.EndsWith(kToolTipSuffix) && !tu.Id.EndsWith(kShortcutSuffix))
@@ -728,7 +730,7 @@ namespace L10NSharp.XLiffUtils
 				// skip the current tooltip or shortcutkeys translation unit since the base
 				// one is all that's needed in the tree.
 				var tmpId = GetBaseId(tu.Id);
-				if (DefaultXliffDocument.File.Body.TransUnits.Any(t => t.Id == tmpId))
+				if (DefaultXliffDocument.File.Body.TransUnitsUnordered.Any(t => t.Id == tmpId))
 					continue;
 
 				// At this point, we know there is not a base translation unit so return the
@@ -740,7 +742,7 @@ namespace L10NSharp.XLiffUtils
 				// translation unit is for a shortcutkeys. Therefore, only return the current
 				// translation unit if there is not associated tooltip translation unit.
 				tmpId = tu.Id.Replace(kShortcutSuffix, kToolTipSuffix);
-				if (!DefaultXliffDocument.File.Body.TransUnits.Any(t => t.Id == tmpId))
+				if (!DefaultXliffDocument.File.Body.TransUnitsUnordered.Any(t => t.Id == tmpId))
 					yield return tu;
 			}
 		}
