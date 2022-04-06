@@ -93,7 +93,7 @@ namespace L10NSharp.XLiffUtils
 				return true;
 			lock (LocalizationManagerInternal<XLiffDocument>.LazyLoadLock)
 			{
-				LoadXliff(langId);
+				LoadXliffAndUpdateExistingLanguageMap(langId);
 			}
 
 			return XliffDocuments.TryGetValue(langId, out doc);
@@ -163,7 +163,7 @@ namespace L10NSharp.XLiffUtils
 		/// to what we find. 
 		/// Use only from TryGetDocument. Should hold LazyLoadLock.
 		/// </summary>
-		private void LoadXliff(string langId)
+		private void LoadXliffAndUpdateExistingLanguageMap(string langId)
 		{
 			if (!_unloadedXliffDocuments.TryRemove(langId, out string file))
 			{
@@ -210,7 +210,7 @@ namespace L10NSharp.XLiffUtils
 
 			XliffDocuments.TryAdd(targetLang, xliffDoc);
 			var defunctUnits = new List<XLiffTransUnit>();
-			foreach (var tu in xliffDoc.File.Body.TransUnits) // need a list here because we may modify it while enumerating
+			foreach (var tu in xliffDoc.File.Body.TransUnitsUnordered.ToList()) // need a list here because we may modify it while enumerating
 			{
 				// This block attempts to find 'orphans', that is, localizations that have been done using an obsolete ID.
 				// We assume the default language Xliff has only current IDs, and therefore don't look for orphans in that case.
