@@ -68,42 +68,14 @@ namespace L10NSharp.XLiffUtils
 		}
 
 		#region Properties
-		/// ------------------------------------------------------------------------------------
-		/// <summary>
-		/// Gets the list of translation units in the file.
-		/// Note, a new list is generated each time, so this can be inefficient. Consider using
-		/// TransUnitsUnordered if you don't absolutely need a list. This method is retained
-		/// mainly for backwards compatibility.
-		/// Modifying the list returned (unlike in previous versions) will have no effect on
-		/// the XliffBody.
-		/// The list returned is not in any predictable order, specifically NOT the same order
-		/// as any list previously passed to the setter.
-		/// </summary>
-		/// ------------------------------------------------------------------------------------
-		[XmlIgnore]
-		public List<XLiffTransUnit> TransUnits
-		{
-			get
-			{
-				var result = TransUnitsUnordered.ToList();
-				return result;
-			}
-			set
-			{
-				_transUnitDict.Clear();
-				foreach (var tu in value)
-				{
-					AddTransUnit(tu);
-				}
-			}
-		}
 
 		/// <summary>
 		/// This property exists solely to support serializing and deserializing an XliffBody in a
-		/// backwards-compatible way. Previously, we simply put this annotation on TransUnits.
-		/// However, the serialization code assumes it can get the list and use Add to put things
-		/// into it, which does not work with the current version. The List wrapper implements just
-		/// the functions required of an IEnumerable property that can be serialized and deserialized.
+		/// backwards-compatible way. The serialization code assumes it can get the object and use
+		/// Add to put things into it when deserializing as well as running the enumeration to get
+		/// the things to serialize. The List wrapper implements just those necessary functions.
+		/// This property must be public for the serializer to work, but is not intended for use
+		/// by other clients.
 		/// </summary>
 		[XmlElement("trans-unit")]
 		public ListWrapper TransUnitsForXml
@@ -115,7 +87,6 @@ namespace L10NSharp.XLiffUtils
 				return new ListWrapper(result, this);
 			}
 		}
-
 
 		[XmlIgnore] public IEnumerable<XLiffTransUnit> TransUnitsUnordered => _transUnitDict.Values;
 
@@ -203,7 +174,7 @@ namespace L10NSharp.XLiffUtils
 			_transUnitDict[key] = tu;
 			return true;
 		}
-		internal bool AddTransUnit(XLiffTransUnit tu)
+		public bool AddTransUnit(XLiffTransUnit tu)
 		{
 			if (!AddTransUnitRaw(tu))
 				return false;
@@ -245,7 +216,7 @@ namespace L10NSharp.XLiffUtils
 		/// Removes the specified translation unit.
 		/// </summary>
 		/// ------------------------------------------------------------------------------------
-		internal void RemoveTransUnit(XLiffTransUnit tu)
+		public void RemoveTransUnit(XLiffTransUnit tu)
 		{
 			// if the ID is null, it can't be in our dictionary, unless someone
 			// cheated and changed the ID by putting it there after inserting it.

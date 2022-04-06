@@ -33,6 +33,13 @@ the lang component in the file path may be either the full tag (Whatever.es-ES.x
 es-ES/Whatever.xlf) or its first component, the actual language tag (Whatever.es.xlf
 or es/Whatever.xlf).
 
+## Thread safety
+
+In general, L10NSharp is not written with thread safety in mind; callers should ensure
+that only one thread at a time enters L10NSharp methods. There is one exception: we have
+attempted to make the various varieties of GetString thread-safe, but currently only
+when the xliff translation memory file approach is used.
+
 ## L10NSharpExtender
 
 To localize a Windows Forms form or control, simply add the `L10NSharpExtender`. It will

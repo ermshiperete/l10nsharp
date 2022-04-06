@@ -21,7 +21,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - option `LocalizationManager.ThrowIfManagerDisposed` to not throw if LM disposed (BL-9904)
 
 ### Changed
-
+- Made string retrieval operations on Xliff-based LocalizationManagers thread-safe
+- Removed XliffBody.TransUnits, as there is no good way to make this thread-safe for all the ways
+it could be used, such as adding items to the list.
+- Added XliffBody.TransUnitsUnordered for where you just need to enumerate all of them.
+- Added (made public) XliffBody.AddTransUnit and .RemoveTransUnit for where you need to modify.
+- Added XliffBody.TransUnitsForXml. This is necessarily public to support (backwards-compatible)
+serialization and deserialization in XML, but is not intended for any other purpose.
 - Added ILocalizationManager parameter to StringsLocalizedHandler
 - It's long been a convention that xliff file names are module.lang.xlf (e.g., Bloom.fr.xlf)
 or else kept in language-code folders (.../en/Bloom.xlf) if UseLanguageCodeFolders is set.
