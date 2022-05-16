@@ -17,6 +17,7 @@ namespace L10NSharp.Tests
 		public void Setup()
 		{
 			LocalizationManager.TranslationMemoryKind = TranslationMemory.XLiff;
+			LocalizationManager.AvoidProgressDialogs = true;
 		}
 
 		internal override ILocalizationManagerInternal<XLiffDocument> CreateLocalizationManager(

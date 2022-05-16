@@ -63,6 +63,13 @@ namespace L10NSharp
 
 		/// ------------------------------------------------------------------------------------
 		/// <summary>
+		/// Set this to true to avoid showing progress dialogs.  (The default is to show them.)
+		/// </summary>
+		/// ------------------------------------------------------------------------------------
+		public static bool AvoidProgressDialogs;
+
+		/// ------------------------------------------------------------------------------------
+		/// <summary>
 		/// Creates a new instance of a localization manager for the specified application id.
 		/// If a localization manager has already been created for the specified id, then
 		/// that is returned.
