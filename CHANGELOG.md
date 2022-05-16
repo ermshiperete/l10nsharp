@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Added
 
+- remove progress dialog when initializating Xliff localization managers (BL-11157)
 - option `LocalizationManager.ThrowIfManagerDisposed` to not throw if LM disposed (BL-9904)
 - XliffBody.TransUnitsUnordered for where you just need to enumerate all of them.
 - (Made public) XliffBody.AddTransUnit and .RemoveTransUnit for where you need to modify.

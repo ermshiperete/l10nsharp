@@ -206,30 +206,43 @@ namespace L10NSharp.XLiffUtils
 
 			var stringCache = new XLiffLocalizedStringCache(this, false);
 
-			using (var dlg = new InitializationProgressDlg<XLiffDocument>(Name, _applicationIcon,
-				additionalLocalizationMethods, namespaceBeginnings))
+			var extractedInfo = ExtractStringsWIthoutDialog(Name, additionalLocalizationMethods, namespaceBeginnings);
+			if (extractedInfo != null)
 			{
-				dlg.ShowDialog();
-				if (dlg.ExtractedInfo != null)
+				if (extractedInfo.Any())
 				{
-					if (dlg.ExtractedInfo.Any())
+					foreach (var locInfo in extractedInfo)
+						stringCache.UpdateLocalizedInfo(locInfo);
+				}
+				else
+				{
+					stringCache.UpdateLocalizedInfo(new LocalizingInfo("_dummyEntryToGetValidFile")
 					{
-						foreach (var locInfo in dlg.ExtractedInfo)
-							stringCache.UpdateLocalizedInfo(locInfo);
+						LangId = "en",
+						Text = "No strings were collected. This entry prevents an invalid, zero-length file. Delete this file to try regenerating it."
 					}
-					else
-					{
-						stringCache.UpdateLocalizedInfo(new LocalizingInfo("_dummyEntryToGetValidFile")
-							{
-								LangId = "en",
-								Text =  "No strings were collected. This entry prevents an invalid, zero-length file. Delete this file to try regenerating it."
-							}
-						);
-					}
+					);
 				}
 			}
-
 			stringCache.SaveIfDirty();
+		}
+
+		public static IEnumerable<LocalizingInfo> ExtractStringsWIthoutDialog(String name, IEnumerable<MethodInfo> additionalLocalizationMethods, String[] namespaceBeginnings)
+		{
+			try
+			{
+				Console.WriteLine("Starting to extract localization strings for {0}", name);
+				var extractor = new L10NSharp.CodeReader.StringExtractor<XLiffDocument>();
+				extractor.OutputErrorsToConsole = true;
+				var result = extractor.DoExtractingWork(additionalLocalizationMethods, namespaceBeginnings, null);
+				Console.WriteLine("Extracted {0} localization strings for {1}", result.Count(), name);
+				return result;
+			}
+			catch (Exception e)
+			{
+				Console.WriteLine("ERROR: extracting localization strings for {0} caught an exception: {1}", name, e);
+				return null;
+			}
 		}
 
 		/// <summary> Sometimes, on Linux, there is an empty DefaultStringFile.  This causes problems. </summary>
