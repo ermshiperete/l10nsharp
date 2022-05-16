@@ -206,30 +206,62 @@ namespace L10NSharp.XLiffUtils
 
 			var stringCache = new XLiffLocalizedStringCache(this, false);
 
-			using (var dlg = new InitializationProgressDlg<XLiffDocument>(Name, _applicationIcon,
-				additionalLocalizationMethods, namespaceBeginnings))
+			IEnumerable<LocalizingInfo> extractedInfo = null;
+			if (LocalizationManager.AvoidProgressDialogs)
 			{
-				dlg.ShowDialog();
-				if (dlg.ExtractedInfo != null)
+				extractedInfo = InitializeWithoutDialog(Name, additionalLocalizationMethods, namespaceBeginnings);
+				ProcessExtractedInfo(extractedInfo, stringCache);
+			}
+			else
+			{
+				using (var dlg = new InitializationProgressDlg<XLiffDocument>(Name, _applicationIcon,
+					additionalLocalizationMethods, namespaceBeginnings))
 				{
-					if (dlg.ExtractedInfo.Any())
-					{
-						foreach (var locInfo in dlg.ExtractedInfo)
-							stringCache.UpdateLocalizedInfo(locInfo);
-					}
-					else
-					{
-						stringCache.UpdateLocalizedInfo(new LocalizingInfo("_dummyEntryToGetValidFile")
-							{
-								LangId = "en",
-								Text =  "No strings were collected. This entry prevents an invalid, zero-length file. Delete this file to try regenerating it."
-							}
-						);
-					}
+					dlg.ShowDialog();
+					ProcessExtractedInfo(dlg.ExtractedInfo, stringCache);
 				}
 			}
 
 			stringCache.SaveIfDirty();
+		}
+
+		private void ProcessExtractedInfo(IEnumerable<LocalizingInfo> extractedInfo, XLiffLocalizedStringCache stringCache)
+		{
+			if (extractedInfo != null)
+			{
+				if (extractedInfo.Any())
+				{
+					foreach (var locInfo in extractedInfo)
+						stringCache.UpdateLocalizedInfo(locInfo);
+				}
+				else
+				{
+					stringCache.UpdateLocalizedInfo(new LocalizingInfo("_dummyEntryToGetValidFile")
+					{
+						LangId = "en",
+						Text = "No strings were collected. This entry prevents an invalid, zero-length file. Delete this file to try regenerating it."
+					}
+					);
+				}
+			}
+		}
+
+		public static IEnumerable<LocalizingInfo> InitializeWithoutDialog(String name, IEnumerable<MethodInfo> additionalLocalizationMethods, String[] namespaceBeginnings)
+		{
+			try
+			{
+				Console.WriteLine("Starting to extract localization strings for {0}", name);
+				var extractor = new L10NSharp.CodeReader.StringExtractor<XLiffDocument>();
+				extractor.OutputErrorsToConsole = true;
+				var result = extractor.DoExtractingWork(additionalLocalizationMethods, namespaceBeginnings, null);
+				Console.WriteLine("Extracted {0} localization strings for {1}", result.Count(), name);
+				return result;
+			}
+			catch (Exception e)
+			{
+				Console.WriteLine("ERROR: extracting localization strings for {0} caught an exception: {1}", name, e);
+				return null;
+			}
 		}
 
 		/// <summary> Sometimes, on Linux, there is an empty DefaultStringFile.  This causes problems. </summary>
