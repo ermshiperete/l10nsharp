@@ -1,4 +1,4 @@
-// Copyright (c) 2019 SIL International
+// Copyright (c) 2022 SIL International
 // This software is licensed under the MIT License (http://opensource.org/licenses/MIT)
 
 using System;
@@ -59,6 +59,7 @@ namespace L10NSharp
 			if (!LoadedManagers.TryGetValue(appId, out var lm))
 			{
 				lm = createMethod(directoryOfWritableTranslationFiles);
+				appId = lm.Id;
 
 				LoadedManagers[appId] = lm;
 				PreviouslyLoadedManagers.Remove(appId);

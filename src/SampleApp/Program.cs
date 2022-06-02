@@ -1,7 +1,5 @@
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -64,7 +62,7 @@ namespace SampleApp
 
 					_localizationManager = LocalizationManager.Create(translationMemoryType,
 						theLanguageYouRememberedFromLastTime,
-						"SampleApp", "SampleApp", Application.ProductVersion,
+						"SampleApp.exe", "SampleApp", Application.ProductVersion,
 						directoryOfInstalledLocFiles,
 						"MyCompany/L10NSharpSample",
 						Resources.Icon, //replace with your icon
@@ -78,7 +76,7 @@ namespace SampleApp
 				{
 					_localizationManager = LocalizationManager.Create(translationMemoryType,
 						theLanguageYouRememberedFromLastTime,
-						"SampleApp", "SampleApp", Application.ProductVersion,
+						"SampleApp.exe", "SampleApp", Application.ProductVersion,
 						directoryOfInstalledLocFiles,
 						"MyCompany/L10NSharpSample",
 						Resources.Icon, //replace with your icon
