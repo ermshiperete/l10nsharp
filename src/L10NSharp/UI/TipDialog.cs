@@ -25,10 +25,20 @@ namespace L10NSharp.UI
 			set { _icon.Image = value; }
 		}
 
-		public static void Show(string message)
+		public static void ShowAltShiftClickTip(IWin32Window owner = null)
+		{
+			Show("If you click on an item while you hold alt and shift keys down, this tool will " +
+				"open up with that item already selected.", owner);
+		}
+
+		public static void Show(string message, IWin32Window owner)
 		{
 			using (var d = new TipDialog(message, "Tip", SystemIcons.Information.ToBitmap()))
-				d.ShowDialog();
+			{
+				if (owner != null)
+					d.StartPosition = FormStartPosition.CenterParent;
+				d.ShowDialog(owner);
+			}
 		}
 
 		private TipDialog()

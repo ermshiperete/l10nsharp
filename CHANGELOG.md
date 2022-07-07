@@ -40,6 +40,8 @@ file like Bloom.es.xlf or .../es/Bloom.xlf).
 when constructing an XLIFF-based LocalizationManager.
 - Changed the way the "original" attribute is set in XLIFF files. It used to be based on the
 Name, but changed it to use Id instead.
+- Added optional owner parameter to methods that show dialog boxes so that they can be
+displayed centered on a parent window (and not appear off-screen).
 
 ### Removed
 

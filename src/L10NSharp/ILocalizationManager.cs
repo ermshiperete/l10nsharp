@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Windows.Forms;
 
 namespace L10NSharp
 {
@@ -91,7 +92,7 @@ namespace L10NSharp
 		void RefreshToolTips();
 
 		void PrepareToCustomizeLocalizations();
-		void ShowLocalizationDialogBox(bool runInReadonlyMode);
+		void ShowLocalizationDialogBox(bool runInReadonlyMode, IWin32Window owner = null);
 
 		/// ------------------------------------------------------------------------------------
 		/// <summary>

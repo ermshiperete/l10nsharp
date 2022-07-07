@@ -269,24 +269,27 @@ namespace L10NSharp.XLiffUtils
 
 		#region Methods for showing localization dialog box
 		/// ------------------------------------------------------------------------------------
-		public void ShowLocalizationDialogBox(bool runInReadonlyMode)
+		public void ShowLocalizationDialogBox(bool runInReadonlyMode, IWin32Window owner = null)
 		{
-			LocalizeItemDlg<XLiffDocument>.ShowDialog(this, "", runInReadonlyMode);
+			LocalizeItemDlg<XLiffDocument>.ShowDialog(this, "", runInReadonlyMode, owner);
 		}
 
 		/// ------------------------------------------------------------------------------------
-		public static void ShowLocalizationDialogBox(IComponent component)
+		public static void ShowLocalizationDialogBox(IComponent component,
+			IWin32Window owner = null)
 		{
-			TipDialog.Show("If you click on an item while you hold alt and shift keys down, this tool will open up with that item already selected.");
+			if (owner == null)
+				owner = (component as Control)?.FindForm();
+			TipDialog.ShowAltShiftClickTip(owner);
 			LocalizeItemDlg<XLiffDocument>.ShowDialog(LocalizationManagerInternal<XLiffDocument>.GetLocalizationManagerForComponent(component),
-				component, false);
+				component, false, owner);
 		}
 
 		/// ------------------------------------------------------------------------------------
-		public static void ShowLocalizationDialogBox(string id)
+		public static void ShowLocalizationDialogBox(string id, IWin32Window owner = null)
 		{
-			TipDialog.Show("If you click on an item while you hold alt and shift keys down, this tool will open up with that item already selected.");
-			LocalizeItemDlg<XLiffDocument>.ShowDialog(LocalizationManagerInternal<XLiffDocument>.GetLocalizationManagerForString(id), id, false);
+			TipDialog.ShowAltShiftClickTip(owner);
+			LocalizeItemDlg<XLiffDocument>.ShowDialog(LocalizationManagerInternal<XLiffDocument>.GetLocalizationManagerForString(id), id, false, owner);
 		}
 
 		#endregion
@@ -992,6 +995,7 @@ namespace L10NSharp.XLiffUtils
 			// Make sure all drop-downs are closed that are in the
 			// chain of menu items for this item.
 			var tsddi = sender as ToolStripDropDownItem;
+			var owningForm = tsddi?.Owner?.FindForm();
 			while (tsddi != null)
 			{
 				tsddi.DropDown.Close();
@@ -1002,7 +1006,8 @@ namespace L10NSharp.XLiffUtils
 				tsddi = tsddi.OwnerItem as ToolStripDropDownItem;
 			}
 
-			LocalizeItemDlg<XLiffDocument>.ShowDialog(this, (IComponent)sender, false);
+			LocalizeItemDlg<XLiffDocument>.ShowDialog(this, (IComponent)sender, false,
+				owningForm);
 		}
 
 		private static bool DoHandleMouseDown
@@ -1065,7 +1070,7 @@ namespace L10NSharp.XLiffUtils
 			var lm = LocalizationManagerInternal<XLiffDocument>.GetLocalizationManagerForComponent(ctrl);
 
 			LocalizationManager.OnLaunchingLocalizationDialog(lm);
-			LocalizeItemDlg<XLiffDocument>.ShowDialog(lm, ctrl, false);
+			LocalizeItemDlg<XLiffDocument>.ShowDialog(lm, ctrl, false, ctrl?.FindForm());
 			LocalizationManager.OnClosingLocalizationDialog(lm);
 		}
 
@@ -1131,9 +1136,9 @@ namespace L10NSharp.XLiffUtils
 			if (!DoHandleMouseDown)
 				return;
 
-			var lv = sender as ListView;
-			if (lv != null && ComponentCache.ContainsKey(lv.Columns[e.Column]))
-				LocalizeItemDlg<XLiffDocument>.ShowDialog(this, lv.Columns[e.Column], false);
+			if (sender is ListView lv && ComponentCache.ContainsKey(lv.Columns[e.Column]))
+				LocalizeItemDlg<XLiffDocument>.ShowDialog(this, lv.Columns[e.Column], false,
+					lv.FindForm());
 		}
 
 		/// ------------------------------------------------------------------------------------
@@ -1173,9 +1178,12 @@ namespace L10NSharp.XLiffUtils
 			if (!DoHandleMouseDown)
 				return;
 
-			var grid = sender as DataGridView;
-			if (grid != null && e.RowIndex < 0 && ComponentCache.ContainsKey(grid.Columns[e.ColumnIndex]))
-				LocalizeItemDlg<XLiffDocument>.ShowDialog(this, grid.Columns[e.ColumnIndex], false);
+			if (sender is DataGridView grid && e.RowIndex < 0 &&
+			    ComponentCache.ContainsKey(grid.Columns[e.ColumnIndex]))
+			{
+				LocalizeItemDlg<XLiffDocument>.ShowDialog(this, grid.Columns[e.ColumnIndex], false,
+					grid.FindForm());
+			}
 		}
 
 		/// ------------------------------------------------------------------------------------

@@ -36,7 +36,7 @@ namespace L10NSharp.UI
 
 		/// ------------------------------------------------------------------------------------
 		internal static DialogResult ShowDialog(ILocalizationManagerInternal<T> callingManager,
-			IComponent component, bool runInReadonlyMode)
+			IComponent component, bool runInReadonlyMode, IWin32Window owner = null)
 		{
 			if (callingManager != null && !callingManager.CanCustomizeLocalizations)
 				runInReadonlyMode = true;
@@ -47,12 +47,16 @@ namespace L10NSharp.UI
 				callingManager.ComponentCache.FirstOrDefault(kvp => kvp.Key == component).Value);
 
 			using (var dlg = new LocalizeItemDlg<T>(viewModel, id, callingManager))
-				return dlg.ShowDialog();
+			{
+				if (owner != null)
+					dlg.StartPosition = FormStartPosition.CenterParent;
+				return dlg.ShowDialog(owner);
+			}
 		}
 
 		/// ------------------------------------------------------------------------------------
 		internal static DialogResult ShowDialog(ILocalizationManagerInternal<T> callingManager,
-			string id, bool runInReadonlyMode)
+			string id, bool runInReadonlyMode, IWin32Window owner = null)
 		{
 			if (callingManager != null && !callingManager.CanCustomizeLocalizations)
 				runInReadonlyMode = true;
@@ -60,7 +64,11 @@ namespace L10NSharp.UI
 			var viewModel = new LocalizeItemDlgViewModel<T>(runInReadonlyMode);
 
 			using (var dlg = new LocalizeItemDlg<T>(viewModel, id, callingManager))
-				return dlg.ShowDialog();
+			{
+				if (owner != null)
+					dlg.StartPosition = FormStartPosition.CenterParent;
+				return dlg.ShowDialog(owner);
+			}
 		}
 
 		#region Constrution/initialization

@@ -205,9 +205,9 @@ namespace L10NSharp.TMXUtils
 
 		#region Methods for showing localization dialog box
 		/// ------------------------------------------------------------------------------------
-		public void ShowLocalizationDialogBox(bool runInReadonlyMode)
+		public void ShowLocalizationDialogBox(bool runInReadonlyMode, IWin32Window owner = null)
 		{
-			LocalizeItemDlg<TMXDocument>.ShowDialog(this, "", runInReadonlyMode);
+			LocalizeItemDlg<TMXDocument>.ShowDialog(this, "", runInReadonlyMode, owner);
 		}
 
 		#endregion
@@ -273,7 +273,7 @@ namespace L10NSharp.TMXUtils
 		/// ------------------------------------------------------------------------------------
 		/// <summary>
 		/// Enumerates a TMX file for each language. Prefer the custom localizations folder version
-		/// if it exists, otherwise the installed langauge folder.
+		/// if it exists, otherwise the installed language folder.
 		/// Exception: never return the English tmx, which is always handled separately and first.
 		/// Doing this serves to insert any new dynamic strings into the cache, thus validating
 		/// them as non-obsolete if we encounter them in other languages.
@@ -428,8 +428,7 @@ namespace L10NSharp.TMXUtils
 		/// ------------------------------------------------------------------------------------
 		private void PrepareComponentForRuntimeLocalization(IComponent component)
 		{
-			var toolStripItem = component as ToolStripItem;
-			if (toolStripItem != null)
+			if (component is ToolStripItem toolStripItem)
 			{
 				toolStripItem.MouseDown += HandleToolStripItemMouseDown;
 				toolStripItem.Disposed += HandleToolStripItemDisposed;
@@ -920,6 +919,8 @@ namespace L10NSharp.TMXUtils
 			// Make sure all drop-downs are closed that are in the
 			// chain of menu items for this item.
 			var tsddi = sender as ToolStripDropDownItem;
+			var owningForm = tsddi?.Owner?.FindForm();
+
 			while (tsddi != null)
 			{
 				tsddi.DropDown.Close();
@@ -930,7 +931,8 @@ namespace L10NSharp.TMXUtils
 				tsddi = tsddi.OwnerItem as ToolStripDropDownItem;
 			}
 
-			LocalizeItemDlg<TMXDocument>.ShowDialog(this, (IComponent)sender, false);
+			LocalizeItemDlg<TMXDocument>.ShowDialog(this, (IComponent)sender, false,
+				owningForm);
 		}
 
 		private static bool DoHandleMouseDown =>
@@ -982,7 +984,7 @@ namespace L10NSharp.TMXUtils
 			var lm = LocalizationManagerInternal<TMXDocument>.GetLocalizationManagerForComponent(ctrl);
 
 			LocalizationManager.OnLaunchingLocalizationDialog(lm);
-			LocalizeItemDlg<TMXDocument>.ShowDialog(lm, ctrl, false);
+			LocalizeItemDlg<TMXDocument>.ShowDialog(lm, ctrl, false, ctrl?.FindForm());
 			LocalizationManager.OnClosingLocalizationDialog(lm);
 		}
 
@@ -1048,7 +1050,8 @@ namespace L10NSharp.TMXUtils
 				return;
 
 			if (sender is ListView lv && ComponentCache.ContainsKey(lv.Columns[e.Column]))
-				LocalizeItemDlg<TMXDocument>.ShowDialog(this, lv.Columns[e.Column], false);
+				LocalizeItemDlg<TMXDocument>.ShowDialog(this, lv.Columns[e.Column], false,
+					lv.FindForm());
 		}
 
 		/// ------------------------------------------------------------------------------------
@@ -1089,7 +1092,8 @@ namespace L10NSharp.TMXUtils
 				return;
 
 			if (sender is DataGridView grid && e.RowIndex < 0 && ComponentCache.ContainsKey(grid.Columns[e.ColumnIndex]))
-				LocalizeItemDlg<TMXDocument>.ShowDialog(this, grid.Columns[e.ColumnIndex], false);
+				LocalizeItemDlg<TMXDocument>.ShowDialog(this, grid.Columns[e.ColumnIndex], false,
+					grid.FindForm());
 		}
 
 		/// ------------------------------------------------------------------------------------

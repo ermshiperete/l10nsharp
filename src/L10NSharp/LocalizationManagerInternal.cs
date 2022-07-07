@@ -252,18 +252,21 @@ namespace L10NSharp
 			}
 		}
 
-		internal static void ShowLocalizationDialogBox(IComponent component)
+		internal static void ShowLocalizationDialogBox(IComponent component,
+			IWin32Window owner = null)
 		{
-			TipDialog.Show("If you click on an item while you hold alt and shift keys down, this tool will open up with that item already selected.");
+			if (owner == null)
+				owner = (component as Control)?.FindForm();
+			TipDialog.ShowAltShiftClickTip(owner);
 			LocalizeItemDlg<T>.ShowDialog(GetLocalizationManagerForComponent(component),
-				component, false);
+				component, false, owner);
 		}
 
-		public static void ShowLocalizationDialogBox(string id)
+		public static void ShowLocalizationDialogBox(string id, IWin32Window owner = null)
 		{
-			TipDialog.Show("If you click on an item while you hold alt and shift keys down, this tool will open up with that item already selected.");
+			TipDialog.ShowAltShiftClickTip(owner);
 			LocalizeItemDlg<T>.ShowDialog(GetLocalizationManagerForString(id),
-				id, false);
+				id, false, owner);
 		}
 
 		/// ------------------------------------------------------------------------------------
