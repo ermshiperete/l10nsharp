@@ -111,7 +111,14 @@ namespace L10NSharp.CodeReader
 						Debug.WriteLine(errorMsg);
 					}
 					else
-						throw;
+					{
+						// Rethrowing the exception just ends up crashing the calling program, which is way overkill.
+						// Provide the exception details in case they may be useful, but continue on.
+						var errorMsg = $"WARNING: unexpected exception in StringExtractor.DoExtractingWork() for {type.FullName}:{Environment.NewLine}{e}";
+						if (OutputErrorsToConsole)
+							Console.WriteLine(errorMsg);
+						Debug.WriteLine(errorMsg);
+					}
 				}
 			}
 

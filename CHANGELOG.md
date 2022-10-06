@@ -37,6 +37,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Changed
 
+- Scanning resources for strings no longer rethrows unexpected exceptions.  It now writes the
+  exception (and stack trace) using a (conditional) Console.WriteLine and a Debug.WriteLine.
+  Rethrowing the exception leads to creating a zero-length xliff file which causes another
+  exception.  Swallowing the exception allows the scanning process to continue and complete.
+  The old behavior has been an endless source of periodic instability in using L10NSharp over
+  the years.
 - remove progress dialog when initializating Xliff localization managers (BL-11157)
 - Made string retrieval operations on Xliff-based LocalizationManagers thread-safe
 - Added ILocalizationManager parameter to StringsLocalizedHandler
