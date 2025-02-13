@@ -201,8 +201,11 @@ namespace L10NSharp.XLiffUtils
 					File.Delete(DefaultStringFilePath);
 					Console.WriteLine("WARNING - L10NSharp Update deleted corrupted {0}", DefaultStringFilePath);
 				}
-				if (verAttribute != null && new Version(verAttribute.Value) >= new Version(AppVersion ?? "0.0.1"))
+				if (verAttribute != null && Version.TryParse(verAttribute.Value, out var existingVer) &&
+					    existingVer >= new Version(AppVersion ?? "0.0.1"))
+				{
 					return;
+				}
 			}
 
 			// Before wasting a bunch of time, make sure we can open the file for writing.

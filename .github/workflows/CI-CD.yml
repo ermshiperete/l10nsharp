@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Upload
-      uses: actions/upload-artifact@3cea5372237819ed00197afe530f5a7ea3e805c8 # v3.1.0
+      uses: actions/upload-artifact@v4
       with:
         name: Event File
         path: ${{ github.event_path }}
@@ -49,13 +49,13 @@ jobs:
 
     - name: Upload Test Results
       if: always()
-      uses: actions/upload-artifact@3cea5372237819ed00197afe530f5a7ea3e805c8 # v3.1.0
+      uses: actions/upload-artifact@v4
       with:
         name: Test Results (${{matrix.os}})
         path: "**/TestResults/*.xml"
 
     - name: Upload Artifacts
-      uses: actions/upload-artifact@3cea5372237819ed00197afe530f5a7ea3e805c8 # v3.1.0
+      uses: actions/upload-artifact@v4
       with:
         name: l10nsharp-nugetpackage
         path: |
